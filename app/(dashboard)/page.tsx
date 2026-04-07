@@ -1,12 +1,3 @@
-/**
- * / — Dashboard home page
- *
- * Shows:
- *  - Summary stats for all modules
- *  - Notifications (кто не сдал телефон)
- *  - Quick links
- */
-
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -16,17 +7,11 @@ import {
   Monitor,
   Shield,
   AlertTriangle,
-  TrendingUp,
   ArrowRight,
 } from "lucide-react";
 import { db } from "@/db";
-import {
-  personnel,
-  phones,
-  equipment,
-  storageItems,
-} from "@/db/schema";
-import { eq, isNull, count, and, ne } from "drizzle-orm";
+import { personnel, phones, equipment, storageItems } from "@/db/schema";
+import { eq, isNull, count, and } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth.server";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +19,6 @@ export const metadata: Metadata = {
   title: "Дашборд — ЗГТ",
 };
 
-// ── Stats fetching — parallel, no waterfall ──────────────────────────────────
 async function fetchDashboardStats() {
   const [
     personnelStats,
@@ -43,35 +27,30 @@ async function fetchDashboardStats() {
     storageStats,
     notSubmittedPhones,
   ] = await Promise.all([
-    // Personnel count by status
     db
       .select({ status: personnel.status, cnt: count() })
       .from(personnel)
       .where(isNull(personnel.deletedAt))
       .groupBy(personnel.status),
 
-    // Phone checkin stats
     db
       .select({ status: phones.status, cnt: count() })
       .from(phones)
       .where(isNull(phones.deletedAt))
       .groupBy(phones.status),
 
-    // Equipment status
     db
       .select({ status: equipment.status, cnt: count() })
       .from(equipment)
       .where(and(isNull(equipment.deletedAt), eq(equipment.isPersonal, false)))
       .groupBy(equipment.status),
 
-    // Storage items
     db
       .select({ status: storageItems.status, cnt: count() })
       .from(storageItems)
       .where(isNull(storageItems.deletedAt))
       .groupBy(storageItems.status),
 
-    // Who hasn't submitted their phone
     db
       .select({
         lastName: personnel.lastName,
@@ -91,10 +70,7 @@ async function fetchDashboardStats() {
       .limit(10),
   ]);
 
-  const personnelTotal = personnelStats.reduce(
-    (s, r) => s + Number(r.cnt),
-    0
-  );
+  const personnelTotal = personnelStats.reduce((s, r) => s + Number(r.cnt), 0);
   const personnelActive =
     personnelStats.find((r) => r.status === "active")?.cnt ?? 0;
 
@@ -104,10 +80,7 @@ async function fetchDashboardStats() {
   const phonesNotSubmitted =
     phoneStats.find((r) => r.status === "checked_out")?.cnt ?? 0;
 
-  const equipmentTotal = equipmentStats.reduce(
-    (s, r) => s + Number(r.cnt),
-    0
-  );
+  const equipmentTotal = equipmentStats.reduce((s, r) => s + Number(r.cnt), 0);
   const equipmentInUse =
     equipmentStats.find((r) => r.status === "in_use")?.cnt ?? 0;
 
@@ -128,7 +101,6 @@ async function fetchDashboardStats() {
   };
 }
 
-// ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({
   title,
   value,
@@ -175,13 +147,11 @@ function StatCard({
   );
 }
 
-// ── Dashboard content (async, streamed) ──────────────────────────────────────
 async function DashboardContent() {
   const stats = await fetchDashboardStats();
 
   return (
     <div className="space-y-8">
-      {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Личный состав"
@@ -214,7 +184,6 @@ async function DashboardContent() {
         />
       </div>
 
-      {/* Notification: phones not submitted */}
       {stats.phones.notSubmitted > 0 && (
         <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-5">
           <div className="flex items-start gap-3">
@@ -224,14 +193,15 @@ async function DashboardContent() {
                 {stats.phones.notSubmitted}{" "}
                 {stats.phones.notSubmitted === 1
                   ? "военнослужащий не сдал телефон"
-                  : stats.phones.notSubmitted < 5
-                  ? "военнослужащих не сдали телефон"
                   : "военнослужащих не сдали телефон"}
               </p>
               {stats.notSubmittedPhones.length > 0 && (
                 <ul className="mt-2 space-y-0.5">
                   {stats.notSubmittedPhones.map((p) => (
-                    <li key={p.id} className="text-xs text-amber-700 dark:text-amber-400">
+                    <li
+                      key={p.id}
+                      className="text-xs text-amber-700 dark:text-amber-400"
+                    >
                       {p.rank} {p.lastName} {p.firstName}
                     </li>
                   ))}
@@ -257,7 +227,6 @@ async function DashboardContent() {
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
@@ -265,8 +234,7 @@ export default async function DashboardPage() {
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-foreground">
-          Добро пожаловать
-          {user?.name ? `, ${user.name.split(" ")[0]}` : ""}
+          Добро пожаловать{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Обзор системы учёта личного состава и техники

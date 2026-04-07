@@ -1,11 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Required for Docker standalone deployment
+  output: "standalone",
+
+  // Next.js 16 stable flags (promoted from experimental)
   typedRoutes: true,
   reactCompiler: true,
-  
-    async headers() {
+
+  async headers() {
     return [
       {
         source: "/(.*)",
@@ -17,12 +20,11 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
-          // CSP — tighten further per deployment
           {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // relax for dev; tighten prod
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self'",
@@ -35,10 +37,10 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // ── TypeScript / ESLint in production build ─────────────────────────────
   typescript: {
     ignoreBuildErrors: false,
   },
+
 };
 
 export default nextConfig;

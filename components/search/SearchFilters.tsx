@@ -1,18 +1,7 @@
 "use client";
 
-/**
- * SearchFilters — Client Component
- *
- * Manages the search input and module filter toggles.
- * All state is encoded in the URL via nuqs — so:
- *   - Filters survive page reload
- *   - Links can be shared/bookmarked
- *   - Browser back/forward works correctly
- */
-
 import { useQueryStates, parseAsString, parseAsArrayOf, parseAsStringEnum, parseAsInteger } from "nuqs";
 import { useTransition, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Search, X, Loader2 } from "lucide-react";
 import { SEARCH_MODULES, MODULE_LABELS, type SearchModule } from "@/types/search";
 import { cn } from "@/lib/utils";
@@ -24,14 +13,13 @@ interface SearchFiltersProps {
 }
 
 export function SearchFilters({
-  initialQuery,
-  initialModules,
-  initialPage,
+  initialQuery: _initialQuery,
+  initialModules: _initialModules,
+  initialPage: _initialPage,
 }: SearchFiltersProps) {
   const [isPending, startTransition] = useTransition();
 
-  // nuqs manages URL search params
-  const [{ q, modules, page }, setParams] = useQueryStates(
+  const [{ q, modules }, setParams] = useQueryStates(
     {
       q: parseAsString.withDefault(""),
       modules: parseAsArrayOf(
@@ -40,7 +28,6 @@ export function SearchFilters({
       page: parseAsInteger.withDefault(1),
     },
     {
-      // Shallow routing — updates URL without full navigation
       shallow: false,
       startTransition,
     }
@@ -76,7 +63,6 @@ export function SearchFilters({
 
   return (
     <div className="space-y-4">
-      {/* Search input */}
       <div className="relative">
         <Search
           className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
@@ -97,8 +83,6 @@ export function SearchFilters({
           autoFocus
           aria-label="Строка поиска"
         />
-
-        {/* Clear button */}
         {(q ?? "").length > 0 && (
           <button
             onClick={handleClearQuery}
@@ -114,12 +98,10 @@ export function SearchFilters({
         )}
       </div>
 
-      {/* Module filters */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-muted-foreground shrink-0">
           Фильтр по разделу:
         </span>
-
         {SEARCH_MODULES.map((module) => {
           const isActive = (modules ?? []).includes(module);
           return (
@@ -140,7 +122,6 @@ export function SearchFilters({
             </button>
           );
         })}
-
         {hasActiveModuleFilters && (
           <button
             onClick={clearAllFilters}
@@ -151,13 +132,10 @@ export function SearchFilters({
         )}
       </div>
 
-      {/* Active filters summary */}
       {hasActiveModuleFilters && (
         <p className="text-xs text-muted-foreground">
           Поиск в:{" "}
-          {(modules ?? [])
-            .map((m) => MODULE_LABELS[m])
-            .join(", ")}
+          {(modules ?? []).map((m) => MODULE_LABELS[m]).join(", ")}
         </p>
       )}
     </div>

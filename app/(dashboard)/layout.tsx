@@ -1,10 +1,3 @@
-/**
- * Dashboard Layout — wraps all authenticated routes
- *
- * Server Component: reads user from session for nav rendering.
- * CommandPalette is a Client Component dropped in as a leaf.
- */
-
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -18,7 +11,8 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth.server";
+import { getCurrentUser, emailToUsername } from "@/lib/auth.server";
+import type { AppUser } from "@/lib/auth.server";
 import { CommandPalette } from "@/components/search/CommandPalette";
 import { cn } from "@/lib/utils";
 
@@ -29,44 +23,18 @@ export const metadata: Metadata = {
   },
 };
 
-// ── Nav items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  {
-    href: "/",
-    label: "Дашборд",
-    icon: LayoutDashboard,
-    minRole: "user",
-  },
-  {
-    href: "/personnel",
-    label: "Личный состав",
-    icon: Users,
-    minRole: "user",
-  },
-  {
-    href: "/phones",
-    label: "Телефоны",
-    icon: Smartphone,
-    minRole: "user",
-  },
-  {
-    href: "/equipment",
-    label: "Техника",
-    icon: Monitor,
-    minRole: "user",
-  },
+  { href: "/", label: "Дашборд", icon: LayoutDashboard, minRole: "user" },
+  { href: "/personnel", label: "Личный состав", icon: Users, minRole: "user" },
+  { href: "/phones", label: "Телефоны", icon: Smartphone, minRole: "user" },
+  { href: "/equipment", label: "Техника", icon: Monitor, minRole: "user" },
   {
     href: "/storage-and-passes",
     label: "Носители и пропуска",
     icon: Shield,
     minRole: "user",
   },
-  {
-    href: "/users",
-    label: "Пользователи",
-    icon: UserCog,
-    minRole: "admin",
-  },
+  { href: "/users", label: "Пользователи", icon: UserCog, minRole: "admin" },
 ] as const;
 
 const ROLE_PRIORITY: Record<string, number> = {
@@ -76,7 +44,13 @@ const ROLE_PRIORITY: Record<string, number> = {
   user: 10,
 };
 
-// ── Layout ───────────────────────────────────────────────────────────────────
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Администратор",
+  officer: "Офицер",
+  operator: "Оператор",
+  user: "Пользователь",
+};
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -84,21 +58,21 @@ export default async function DashboardLayout({
 }) {
   const user = await getCurrentUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
-  const userPriority = ROLE_PRIORITY[user.role as string] ?? 0;
-
+  const userPriority = ROLE_PRIORITY[user.role] ?? 0;
   const visibleNavItems = NAV_ITEMS.filter(
-    (item) => userPriority >= ROLE_PRIORITY[item.minRole]
+    (item) => userPriority >= (ROLE_PRIORITY[item.minRole] ?? 0)
   );
+
+  // Display the username part, not the @zgt.local email
+  const displayUsername = emailToUsername(user.email);
+  const initials = displayUsername.slice(0, 2).toUpperCase();
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card shrink-0">
-        {/* Logo / App name */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
             <Shield className="w-4 h-4 text-primary-foreground" />
@@ -107,31 +81,28 @@ export default async function DashboardLayout({
             <p className="text-sm font-semibold text-foreground leading-tight">
               ЗГТ Система
             </p>
-            <p className="text-xs text-muted-foreground">
-              Управление имуществом
-            </p>
+            <p className="text-xs text-muted-foreground">Управление имуществом</p>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5" aria-label="Основная навигация">
+        <nav
+          className="flex-1 px-3 py-4 space-y-0.5"
+          aria-label="Основная навигация"
+        >
           {visibleNavItems.map((item) => (
             <NavLink key={item.href} item={item} />
           ))}
         </nav>
 
-        {/* User info + logout */}
         <div className="border-t border-border px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-              <span className="text-xs font-medium">
-                {user.name?.charAt(0)?.toUpperCase() ?? "U"}
-              </span>
+              <span className="text-xs font-medium">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">
-                {user.role}
+              <p className="text-xs text-muted-foreground">
+                {ROLE_LABELS[user.role] ?? user.role}
               </p>
             </div>
             <form action="/api/auth/sign-out" method="POST">
@@ -147,38 +118,28 @@ export default async function DashboardLayout({
         </div>
       </aside>
 
-      {/* ── Main content ─────────────────────────────────────────────────── */}
+      {/* ── Main content ────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
         <header className="flex items-center gap-4 px-6 py-3 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-          {/* Mobile: hamburger would go here */}
           <div className="flex-1" />
-
-          {/* Command palette trigger */}
           <CommandPalette />
         </header>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
   );
 }
 
-// ── NavLink — needs to be Client Component for active state ──────────────────
-// We use a Server Component wrapper and pass href as prop.
-// Active state highlighting is handled via CSS :is() selector hack
-// to avoid making the entire layout a client component.
-
 function NavLink({
   item,
 }: {
-  item: { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+  item: {
+    href: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  };
 }) {
   const Icon = item.icon;
-
   return (
     <Link
       href={item.href}
@@ -186,9 +147,7 @@ function NavLink({
         "flex items-center gap-3 px-3 py-2 rounded-md",
         "text-sm text-muted-foreground",
         "hover:text-foreground hover:bg-muted",
-        "transition-colors group",
-        // Active state via CSS — Next.js injects data-active or we use JS
-        // For full active styling, wrap in a Client Component NavItem
+        "transition-colors group"
       )}
     >
       <Icon className="w-4 h-4 shrink-0" />

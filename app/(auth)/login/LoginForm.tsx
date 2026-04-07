@@ -32,20 +32,19 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
 
     startTransition(async () => {
       try {
+        // Convert username → internal email format used by better-auth
+        // e.g. "admin" → "admin@zgt.local"
+        const email = `${username.trim().toLowerCase()}@zgt.local`;
+
         const res = await fetch("/api/auth/sign-in/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: username, // better-auth uses email field; we pass username
-            password,
-          }),
+          body: JSON.stringify({ email, password }),
         });
 
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setFormError(
-            data.message ?? ERROR_MESSAGES.credentials
-          );
+          const data = await res.json().catch(() => ({})) as { message?: string };
+          setFormError(data.message ?? ERROR_MESSAGES.credentials);
           return;
         }
 
@@ -112,7 +111,6 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
         </div>
       </div>
 
-      {/* Error message */}
       {formError && (
         <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
           <span className="mt-0.5 shrink-0">⚠</span>

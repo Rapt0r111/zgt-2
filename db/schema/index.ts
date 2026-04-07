@@ -1,19 +1,18 @@
 /**
  * Drizzle ORM Schema — ЗГТ System
  *
- * Design principles:
- *  - All PKs are UUIDs (gen_random_uuid) — portable across DBs
- *  - snake_case columns, camelCase TS fields
- *  - Every searchable text field contributes to tsvector index
- *  - Soft-delete via deleted_at (no hard DELETE in production)
- *  - Audit trail: created_at, updated_at, created_by, updated_by
+ * Auth tables (user, session, account, verification) match exactly what
+ * better-auth's drizzle adapter expects. IDs are text (better-auth default).
+ *
+ * App tables (personnel, equipment, etc.) keep their own uuid PKs.
+ * createdBy columns reference user.id (text).
  */
 
 import {
   pgTable,
   uuid,
-  varchar,
   text,
+  varchar,
   integer,
   smallint,
   boolean,
@@ -25,7 +24,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
-// ── Custom tsvector type for full-text search ──────────────────────────────
+// ── Custom tsvector type ───────────────────────────────────────────────────
 const tsvector = customType<{ data: string }>({
   dataType() {
     return "tsvector";
@@ -37,23 +36,23 @@ const tsvector = customType<{ data: string }>({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const personnelStatusEnum = pgEnum("personnel_status", [
-  "active",       // В строю
-  "detached",     // В командировке
-  "hospital",     // В госпитале
-  "leave",        // В отпуске
-  "dismissed",    // Уволен
+  "active",
+  "detached",
+  "hospital",
+  "leave",
+  "dismissed",
 ]);
 
 export const equipmentStatusEnum = pgEnum("equipment_status", [
-  "in_use",       // В работе
-  "storage",      // На складе
-  "repair",       // В ремонте
-  "broken",       // Сломан
+  "in_use",
+  "storage",
+  "repair",
+  "broken",
 ]);
 
 export const deviceStatusEnum = pgEnum("device_status", [
-  "checked_in",   // Сдан
-  "checked_out",  // Выдан
+  "checked_in",
+  "checked_out",
 ]);
 
 export const storageItemStatusEnum = pgEnum("storage_item_status", [
@@ -64,22 +63,15 @@ export const storageItemStatusEnum = pgEnum("storage_item_status", [
 ]);
 
 export const storageItemTypeEnum = pgEnum("storage_item_type", [
-  "flash_drive",      // Флешка МО
-  "electronic_pass",  // Электронный пропуск
-]);
-
-export const userRoleEnum = pgEnum("user_role", [
-  "admin",    // 100
-  "officer",  // 50
-  "operator", // 20
-  "user",     // 10
+  "flash_drive",
+  "electronic_pass",
 ]);
 
 export const equipmentCategoryEnum = pgEnum("equipment_category", [
-  "workstation",  // ПЭВМ / АРМ
-  "laptop",       // Ноутбук
-  "server",       // Сервер
-  "other",        // Прочая электроника
+  "workstation",
+  "laptop",
+  "server",
+  "other",
 ]);
 
 export const transferTypeEnum = pgEnum("transfer_type", [
@@ -91,28 +83,77 @@ export const transferTypeEnum = pgEnum("transfer_type", [
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// USERS (system accounts)
+// BETTER-AUTH TABLES
+// Column names must match better-auth's drizzle adapter expectations exactly.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const users = pgTable(
-  "users",
+export const user = pgTable(
+  "user",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    username: varchar("username", { length: 64 }).notNull().unique(),
-    passwordHash: text("password_hash").notNull(),
-    displayName: varchar("display_name", { length: 128 }).notNull(),
-    role: userRoleEnum("role").notNull().default("user"),
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    // We store username as email (e.g. "admin@zgt.local") internally
+    // The login form shows only the username part
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
+
+    // Custom fields — declared as additionalFields in auth config
+    role: varchar("role", { length: 32 }).notNull().default("user"),
     isActive: boolean("is_active").notNull().default(true),
-    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (t) => [index("users_username_idx").on(t.username)]
+  (t) => [
+    index("user_email_idx").on(t.email),
+    index("user_role_idx").on(t.role),
+  ]
 );
+
+export const session = pgTable("session", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const account = pgTable("account", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", {
+    withTimezone: true,
+  }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+    withTimezone: true,
+  }),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+export const verification = pgTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PERSONNEL (личный состав)
@@ -123,26 +164,20 @@ export const personnel = pgTable(
   {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
 
-    // Identity
     lastName: varchar("last_name", { length: 64 }).notNull(),
     firstName: varchar("first_name", { length: 64 }).notNull(),
     middleName: varchar("middle_name", { length: 64 }),
     personnelNumber: varchar("personnel_number", { length: 32 }).unique(),
 
-    // Military
     rank: varchar("rank", { length: 64 }).notNull(),
     rankPriority: smallint("rank_priority").notNull().default(0),
     position: varchar("position", { length: 128 }),
-    unit: varchar("unit", { length: 128 }),    // Взвод / подразделение
+    unit: varchar("unit", { length: 128 }),
 
-    // Status
     status: personnelStatusEnum("status").notNull().default("active"),
     notes: text("notes"),
-
-    // Full-text search vector (auto-maintained via trigger)
     searchVector: tsvector("search_vector"),
 
-    // Audit
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -150,7 +185,8 @@ export const personnel = pgTable(
       .notNull()
       .default(sql`now()`),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    createdBy: uuid("created_by").references(() => users.id),
+    // text ref to better-auth user.id
+    createdBy: text("created_by").references(() => user.id),
   },
   (t) => [
     index("personnel_search_idx").using("gin", t.searchVector),
@@ -184,8 +220,6 @@ export const phones = pgTable(
 
     status: deviceStatusEnum("status").notNull().default("checked_out"),
     storageCell: varchar("storage_cell", { length: 32 }),
-
-    // FTS
     searchVector: tsvector("search_vector"),
 
     checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
@@ -217,36 +251,29 @@ export const equipment = pgTable(
     category: equipmentCategoryEnum("category").notNull(),
     isPersonal: boolean("is_personal").notNull().default(false),
 
-    // Identification
     displayName: varchar("display_name", { length: 256 }).notNull(),
-    inventoryNumber: varchar("inventory_number", { length: 64 }), // Инвентарный номер МО
+    inventoryNumber: varchar("inventory_number", { length: 64 }),
     serialNumber: varchar("serial_number", { length: 128 }),
-    mniSerialNumber: varchar("mni_serial_number", { length: 128 }), // МНИ С/Н
+    mniSerialNumber: varchar("mni_serial_number", { length: 128 }),
 
-    // Manufacturer
     manufacturer: varchar("manufacturer", { length: 64 }),
     model: varchar("model", { length: 128 }),
 
-    // Specs (nullable — not required for "other" category)
     cpu: varchar("cpu", { length: 128 }),
     ramGb: smallint("ram_gb"),
-    storageType: varchar("storage_type", { length: 32 }), // HDD / SSD / NVMe
+    storageType: varchar("storage_type", { length: 32 }),
     storageGb: integer("storage_gb"),
     os: varchar("os", { length: 128 }),
 
-    // Kit completeness
     hasCharger: boolean("has_charger"),
     hasMouse: boolean("has_mouse"),
     hasBag: boolean("has_bag"),
     isChargerWorking: boolean("is_charger_working"),
     isMouseWorking: boolean("is_mouse_working"),
 
-    // Assignment
     personnelId: uuid("personnel_id").references(() => personnel.id),
     location: varchar("location", { length: 256 }),
     status: equipmentStatusEnum("status").notNull().default("storage"),
-
-    // FTS
     searchVector: tsvector("search_vector"),
 
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -256,10 +283,9 @@ export const equipment = pgTable(
       .notNull()
       .default(sql`now()`),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    createdBy: uuid("created_by").references(() => users.id),
+    createdBy: text("created_by").references(() => user.id),
   },
   (t) => [
-    // Partial unique index: inventory_number must be unique only when NOT NULL
     uniqueIndex("equipment_inventory_number_unique_idx")
       .on(t.inventoryNumber)
       .where(sql`${t.inventoryNumber} IS NOT NULL`),
@@ -287,10 +313,10 @@ export const storageDevices = pgTable(
     inventoryNumber: varchar("inventory_number", { length: 64 }),
     serialNumber: varchar("serial_number", { length: 128 }),
     capacityGb: integer("capacity_gb").notNull(),
-    interface: varchar("interface", { length: 32 }), // SATA / NVMe / USB
-    type: varchar("type", { length: 16 }), // HDD / SSD
-
+    interface: varchar("interface", { length: 32 }),
+    type: varchar("type", { length: 16 }),
     searchVector: tsvector("search_vector"),
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -317,11 +343,7 @@ export const storageItems = pgTable(
     type: storageItemTypeEnum("type").notNull(),
     inventoryNumber: varchar("inventory_number", { length: 64 }),
     serialNumber: varchar("serial_number", { length: 128 }),
-
-    // Flash drive specific
     capacityGb: smallint("capacity_gb"),
-
-    // Electronic pass specific
     accessLevel: smallint("access_level"),
 
     status: storageItemStatusEnum("status").notNull().default("stock"),
@@ -374,7 +396,7 @@ export const equipmentTransfers = pgTable(
     transferredAt: timestamp("transferred_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
-    createdBy: uuid("created_by").references(() => users.id),
+    createdBy: text("created_by").references(() => user.id),
   },
   (t) => [
     index("equipment_transfers_equipment_idx").on(t.equipmentId),
@@ -416,21 +438,16 @@ export const storageItemsRelations = relations(storageItems, ({ one }) => ({
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPE EXPORTS (inferred from schema)
+// TYPE EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-
+export type User = typeof user.$inferSelect;
 export type Personnel = typeof personnel.$inferSelect;
 export type NewPersonnel = typeof personnel.$inferInsert;
-
 export type Phone = typeof phones.$inferSelect;
 export type NewPhone = typeof phones.$inferInsert;
-
 export type Equipment = typeof equipment.$inferSelect;
 export type NewEquipment = typeof equipment.$inferInsert;
-
 export type StorageDevice = typeof storageDevices.$inferSelect;
 export type StorageItem = typeof storageItems.$inferSelect;
 export type EquipmentTransfer = typeof equipmentTransfers.$inferSelect;

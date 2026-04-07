@@ -1,16 +1,15 @@
 import type { Config } from "drizzle-kit";
-import * as dotenv from "dotenv";
 
-dotenv.config({ path: ".env.local" });
+// Bun auto-loads .env.local — no dotenv import needed.
+// For plain Node.js scripts (migrate.js), dotenv is still used there.
 
 export default {
-  schema: "./src/db/schema/index.ts",
+  schema: "./db/schema/index.ts",
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-  // Verbose logging of generated SQL
   verbose: true,
   strict: true,
 } satisfies Config;

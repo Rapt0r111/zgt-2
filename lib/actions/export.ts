@@ -1,24 +1,10 @@
 "use server";
 
-/**
- * Excel Export — Server Action
- *
- * Returns a base64-encoded .xlsx file for any module.
- * Client triggers download via <a download> trick.
- *
- * Uses ExcelJS for rich formatting (merged cells, column widths, headers).
- */
-
 import "server-only";
 import ExcelJS from "exceljs";
 import { db } from "@/db";
-import {
-  personnel,
-  phones,
-  equipment,
-  storageItems,
-} from "@/db/schema";
-import { eq, isNull, and } from "drizzle-orm";
+import { personnel, phones } from "@/db/schema";
+import { eq, isNull } from "drizzle-orm";
 import { requireRole } from "@/lib/auth.server";
 
 export interface ExportResult {
@@ -27,16 +13,19 @@ export interface ExportResult {
   mimeType: string;
 }
 
-// ── Shared workbook styles ────────────────────────────────────────────────────
 function applyHeaderStyle(row: ExcelJS.Row) {
   row.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
     cell.fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "FF1D4ED8" }, // Tailwind blue-700
+      fgColor: { argb: "FF1D4ED8" },
     };
-    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    cell.alignment = {
+      vertical: "middle",
+      horizontal: "center",
+      wrapText: true,
+    };
     cell.border = {
       bottom: { style: "thin", color: { argb: "FFBFDBFE" } },
     };
@@ -44,7 +33,11 @@ function applyHeaderStyle(row: ExcelJS.Row) {
   row.height = 30;
 }
 
-function autoWidth(sheet: ExcelJS.Worksheet, minWidth = 10, maxWidth = 50) {
+function autoWidth(
+  sheet: ExcelJS.Worksheet,
+  minWidth = 10,
+  maxWidth = 50
+) {
   sheet.columns.forEach((col) => {
     let maxLen = minWidth;
     col.eachCell?.({ includeEmpty: false }, (cell) => {
@@ -55,7 +48,6 @@ function autoWidth(sheet: ExcelJS.Worksheet, minWidth = 10, maxWidth = 50) {
   });
 }
 
-// ── Personnel export ──────────────────────────────────────────────────────────
 export async function exportPersonnelToExcel(): Promise<ExportResult> {
   await requireRole("officer");
 
@@ -119,7 +111,6 @@ export async function exportPersonnelToExcel(): Promise<ExportResult> {
 
   autoWidth(ws);
 
-  // Footer row with count
   const footerRow = ws.addRow([`Итого: ${rows.length} чел.`]);
   footerRow.getCell(1).font = { bold: true, italic: true };
 
@@ -130,17 +121,16 @@ export async function exportPersonnelToExcel(): Promise<ExportResult> {
   return {
     base64,
     filename: `личный_состав_${date}.xlsx`,
-    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   };
 }
 
-// ── Phones checkin status export ──────────────────────────────────────────────
 export async function exportPhonesToExcel(): Promise<ExportResult> {
   await requireRole("operator");
 
   const rows = await db
     .select({
-      // phones
       model: phones.model,
       brand: phones.brand,
       imei1: phones.imei1,
@@ -148,7 +138,6 @@ export async function exportPhonesToExcel(): Promise<ExportResult> {
       status: phones.status,
       storageCell: phones.storageCell,
       hasCamera: phones.hasCamera,
-      // personnel
       lastName: personnel.lastName,
       firstName: personnel.firstName,
       rank: personnel.rank,
@@ -194,8 +183,6 @@ export async function exportPhonesToExcel(): Promise<ExportResult> {
       r.storageCell ?? "",
       r.hasCamera ? "Да" : "Нет",
     ]);
-
-    // Highlight not-checked-in rows
     if (r.status === "checked_out") {
       row.getCell(7).font = { color: { argb: "FFDC2626" }, bold: true };
     }
@@ -215,6 +202,7 @@ export async function exportPhonesToExcel(): Promise<ExportResult> {
   return {
     base64: Buffer.from(buffer).toString("base64"),
     filename: `телефоны_${date}.xlsx`,
-    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   };
 }

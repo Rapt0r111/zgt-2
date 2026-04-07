@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
 
 const inter = Inter({
@@ -17,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "ЗГТ — Система управления имуществом",
   description: "Система учёта личного состава, техники и носителей",
-  robots: "noindex, nofollow", // Intranet — no crawling
+  robots: "noindex, nofollow",
 };
 
 export default function RootLayout({
@@ -32,7 +33,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen antialiased font-sans">
-        {children}
+        {/*
+          NuqsAdapter is REQUIRED for nuqs useQueryStates / useQueryState
+          to work in Next.js App Router. Without it, SearchFilters will throw.
+        */}
+        <NuqsAdapter>{children}</NuqsAdapter>
       </body>
     </html>
   );
