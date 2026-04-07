@@ -7,25 +7,22 @@ export const config = {
   ],
 };
 
-const PROTECTED_ROUTES: Array<{ pattern: RegExp; minRole: string }> = [
-  { pattern: /^\/users/, minRole: "admin" },
-  { pattern: /^\/equipment\/delete/, minRole: "officer" },
-];
-
 export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
-  // better-auth использует опaque токены (не JWT) — просто проверяем наличие куки
-  const sessionToken = request.cookies.get("zgt_session")?.value;
+  // better-auth may name the cookie "zgt_session" or prefix it.
+  // Check all cookies for a match rather than a hardcoded exact name.
+  const allCookies = request.cookies.getAll();
+  const hasSession = allCookies.some(
+    (c) => c.name === "zgt_session" || c.name.startsWith("zgt_session")
+  );
 
-  if (!sessionToken) {
+  if (!hasSession) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Роль берём из заголовка который better-auth может добавлять,
-  // или просто пропускаем — реальная проверка роли в RSC через requireRole()
   const requestId = crypto.randomUUID();
   const response = NextResponse.next({
     request: {
@@ -37,6 +34,5 @@ export function proxy(request: NextRequest): NextResponse {
   });
 
   response.headers.set("x-request-id", requestId);
-
   return response;
 }

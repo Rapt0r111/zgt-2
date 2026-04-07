@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Route } from "next";
 
 interface LoginFormProps {
   callbackUrl: string;
@@ -48,8 +49,8 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
           return;
         }
 
-        router.push(callbackUrl);
-        router.refresh();
+        router.push(callbackUrl as Route);
+
       } catch {
         setFormError("Ошибка соединения с сервером");
       }
