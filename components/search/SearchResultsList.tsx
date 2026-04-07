@@ -7,6 +7,7 @@ import { Users, Smartphone, Monitor, Shield, Clock } from "lucide-react";
 import type { SearchResults, SearchResultItem, SearchModule } from "@/types/search";
 import { MODULE_LABELS } from "@/types/search";
 import { cn } from "@/lib/utils";
+import { Route } from "next";
 
 // ── Module icon map ──────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ function ResultItem({ item }: { item: SearchResultItem }) {
 
   return (
     <Link
-      href={item.href}
+      href={item.href as Route}
       className={cn(
         "group flex items-start gap-4 p-4 rounded-lg",
         "border border-transparent",

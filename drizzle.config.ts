@@ -1,7 +1,8 @@
 import type { Config } from "drizzle-kit";
+import * as dotenv from "dotenv";
 
-// Bun auto-loads .env.local — no dotenv import needed.
-// For plain Node.js scripts (migrate.js), dotenv is still used there.
+// drizzle-kit runs via Node.js, not Bun — must load .env manually
+dotenv.config({ path: ".env.local" });
 
 export default {
   schema: "./db/schema/index.ts",
