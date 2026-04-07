@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Route } from "next";
 
 interface LoginFormProps {
   callbackUrl: string;
@@ -25,7 +23,6 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
     error ? (ERROR_MESSAGES[error] ?? "Произошла ошибка") : null
   );
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,7 +46,13 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
           return;
         }
 
-        router.push(callbackUrl as Route);
+        // Use a hard navigation (window.location) instead of router.push().
+        // router.push() sends an RSC fetch request — the session cookie set by
+        // better-auth in the sign-in response may not be attached to that
+        // internal fetch in time, causing the proxy auth check to fail and
+        // triggering the redirect loop.  A full browser navigation guarantees
+        // the cookie is included in the very first request.
+        window.location.href = callbackUrl;
 
       } catch {
         setFormError("Ошибка соединения с сервером");

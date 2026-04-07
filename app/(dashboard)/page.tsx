@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import {
@@ -118,7 +118,7 @@ function StatCard({
 }) {
   return (
     <Link
-      href={href}
+      href={href as Route}
       className={cn(
         "group flex flex-col gap-4 p-5 rounded-xl border bg-card",
         "hover:border-primary/50 hover:shadow-sm transition-all",
@@ -213,7 +213,7 @@ async function DashboardContent() {
                 </ul>
               )}
               <Link
-                href="/phones"
+                href={"/phones" as Route}
                 className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline"
               >
                 Перейти к телефонам

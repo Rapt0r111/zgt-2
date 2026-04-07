@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Route } from "next";
 import {
   Users,
   Smartphone,
@@ -12,7 +13,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { getCurrentUser, emailToUsername } from "@/lib/auth.server";
-import type { AppUser } from "@/lib/auth.server";
 import { CommandPalette } from "@/components/search/CommandPalette";
 import { cn } from "@/lib/utils";
 
@@ -142,7 +142,7 @@ function NavLink({
   const Icon = item.icon;
   return (
     <Link
-      href={item.href}
+      href={item.href as Route}
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-md",
         "text-sm text-muted-foreground",

@@ -26,6 +26,7 @@ import {
   Shield,
   ArrowRight,
 } from "lucide-react";
+import type { Route } from "next";
 import type { SearchResults, SearchResultItem, SearchModule } from "@/types/search";
 import { MODULE_LABELS } from "@/types/search";
 import { cn } from "@/lib/utils";
@@ -62,7 +63,7 @@ function MiniResult({
 
   return (
     <Link
-      href={item.href}
+      href={item.href as Route}
       onClick={onClose}
       className={cn(
         "flex items-center gap-3 px-4 py-2.5 text-sm transition-colors",
@@ -164,11 +165,11 @@ export function CommandPalette() {
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (results[focusedIndex]) {
-        router.push(results[focusedIndex].href);
+        router.push(results[focusedIndex].href as Route);
         close();
       } else if (query.trim().length >= 2) {
         // No focused item — go to full search page
-        router.push(`/search?q=${encodeURIComponent(query)}`);
+        router.push(`/search?q=${encodeURIComponent(query)}` as Route);
         close();
       }
     }
@@ -255,7 +256,7 @@ export function CommandPalette() {
         {query.trim().length >= 2 && (
           <div className="border-t border-border px-4 py-2">
             <Link
-              href={`/search?q=${encodeURIComponent(query)}`}
+              href={`/search?q=${encodeURIComponent(query)}` as Route}
               onClick={close}
               className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
