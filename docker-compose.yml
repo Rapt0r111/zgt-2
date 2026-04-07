@@ -1,0 +1,80 @@
+version: "3.9"
+
+# ЗГТ System — Local Network Docker Compose
+# Designed for air-gapped / intranet deployment on Linux
+# Compatible with future cloud migration (replace postgres service with managed DB)
+
+services:
+  # ─── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: zgt_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zgt_db}
+      POSTGRES_USER: ${POSTGRES_USER:-zgt_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_prod}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"   # Bind only localhost — no external access
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zgt_user} -d ${POSTGRES_DB:-zgt_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zgt_internal
+
+  # ─── Next.js App ───────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: zgt_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-zgt_user}:${POSTGRES_PASSWORD:-change_me_in_prod}@postgres:5432/${POSTGRES_DB:-zgt_db}?sslmode=disable
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-generate_a_real_secret_32chars}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      # Future cloud migration: swap DATABASE_URL ↑ to managed DB endpoint
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      - zgt_internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── pgAdmin (dev/ops only — disable in strict prod) ──────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: zgt_pgadmin
+    restart: unless-stopped
+    profiles: ["dev"]   # Only starts with: docker compose --profile dev up
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local.lan}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "127.0.0.1:5050:80"
+    networks:
+      - zgt_internal
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  zgt_internal:
+    driver: bridge
+    internal: false   # Set true for fully air-gapped network
