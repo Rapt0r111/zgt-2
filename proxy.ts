@@ -14,7 +14,8 @@ export function proxy(request: NextRequest): NextResponse {
   // Check all cookies for a match rather than a hardcoded exact name.
   const allCookies = request.cookies.getAll();
   const hasSession = allCookies.some(
-    (c) => c.name === "zgt_session" || c.name.startsWith("zgt_session")
+    (c) => c.name === "better-auth.session_token" ||
+      c.name.startsWith("better-auth.")
   );
 
   if (!hasSession) {

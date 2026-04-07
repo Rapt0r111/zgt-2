@@ -36,13 +36,9 @@ export const auth = betterAuth({
   },
 
   session: {
-    cookieName: "zgt_session",
-    expiresIn: 60 * 60 * 8,   // 8 hours
-    updateAge: 60 * 30,        // refresh after 30 min activity
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 5,
-    },
+    expiresIn: 60 * 60 * 8,
+    updateAge: 60 * 30,
+    cookieCache: { enabled: true, maxAge: 60 * 5 },
   },
 
   // Declare custom columns on the user table
