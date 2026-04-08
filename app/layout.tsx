@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { ToastProvider } from "@/components/ui/toaster";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,11 +34,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen antialiased font-sans">
-        {/*
-          NuqsAdapter is REQUIRED for nuqs useQueryStates / useQueryState
-          to work in Next.js App Router. Without it, SearchFilters will throw.
-        */}
-        <NuqsAdapter>{children}</NuqsAdapter>
+        <NuqsAdapter>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );
