@@ -1,125 +1,306 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-
-Ты — senior fullstack разработчик и системный архитектор уровня staff engineer. 
+Ты — senior fullstack разработчик и системный архитектор уровня staff engineer.
 Работаешь с современным стеком 2026–2027 годов и следуешь best practices (DX, UX, security, scalability).
 
 Контекст проекта:
-Это система для ЗГТ (защита государственной тайны).
+Это система для ЗГТ (защита государственной тайны), где критически важны:
+
+* строгий учёт техники
+* контроль перемещений
+* аудит действий
+* отказоустойчивость
 
 Задача:
-Спроектировать и реализовать модуль "Персонал" (Personnel Management System).
-
-Функциональные требования:
-1. CRUD персонала:
-   - Создание сотрудника
-   - Просмотр карточки
-   - Редактирование
-   - Удаление (soft delete)
-
-2. Поля сотрудника:
-   - ФИО
-   - Звание и его вес. От рядового до Генерала армии или что там
-   - Должность
-   - Взвод
-   - Контактные данные
-   - Статус (активен / уволен / в отпуске)
-   - Дата создания / обновления
-
-3. Поиск и фильтрация:
-   - По ФИО (full-text search)
-   - По подразделению
-   - По уровню доступа
-   - По статусу
-   - Быстрый поиск + расширенные фильтры
-
-4. Экспорт:
-   - CSV / Excel
-   - PDF (опционально)
-   - Выгрузка с учетом фильтров
-
-5. RBAC:
-   - admin: полный доступ
-   - user: только просмотр и поиск
+Спроектировать и реализовать модуль "Вычислительная техника" (Equipment Management System).
 
 ---
 
-Требования к архитектуре:
+## Функциональные требования:
 
-1. Backend:
-   - Чистая архитектура (services / repositories / DTO)
-   - API (REST или server actions)
-   - Валидация (Zod или аналог)
-   - Pagination, sorting
+### 1. Основная сущность: вычислительная техника
 
-2. Frontend:
-   - Использовать App Router
-   - Server Components + Client Components где нужно
-   - Suspense + streaming
-   - Формы через react-hook-form + zod
-   - Data fetching: server-first подход
+Типы:
 
-3. UI/UX (очень важно):
-   Продумай современный интерфейс уровня enterprise SaaS:
-   - Таблица персонала (как в Notion / Linear / Jira)
-   - Sticky header, сортировка, фильтры
-   - Debounced search
-   - Drawer / Modal для создания и редактирования
-   - Skeleton loaders
-   - Empty states
-   - Error states
-   - Toast уведомления
-   - Быстрые действия (edit/delete inline)
+* ПЭВМ
+* АРМ
+* Ноутбук
+* Сервер
 
-4. Дизайн:
-   - Минималистичный, современный (Linear / Vercel style)
-   - Использовать shadcn/ui или аналог
-   - Тёмная/светлая тема
-   - Акцент на читаемость данных
+Поля:
 
-5. Безопасность:
-   - Проверка ролей на сервере
-   - Защита API
-   - Логирование действий
+* Тип устройства
+* Инвентарный номер (МО) — уникальный, но допускает NULL (частичный индекс)
+* Серийный номер
+* МНИ серийный номер
+* Производитель
+* Модель
+
+Технические характеристики:
+
+* CPU
+* RAM
+* Тип хранилища (HDD/SSD/NVMe)
+* Объём хранилища
+* Операционная система
+
+Состояние:
+
+* Статус:
+
+  * В работе
+  * На складе
+  * В ремонте
+  * Сломан
+* Исправность (boolean)
+* Местоположение (строка или сущность)
+* Владелец (ссылка на personnel)
+
+---
+
+### 2. Комплектность устройства
+
+Каждое устройство может иметь комплект:
+
+* Ноутбук
+* Зарядка
+* Мышь
+* Сумка
+
+Для каждого элемента:
+
+* Наличие (boolean)
+* Исправность (boolean)
+
+Важно:
+
+* Комплект — отдельная вложенная структура
+* Возможность частичной утраты/повреждения
+
+---
+
+### 3. Накопители (StorageDevice)
+
+Отдельная сущность, связанная с устройством:
+
+Поля:
+
+* Тип (HDD/SSD)
+* Инвентарный номер
+* Серийный номер
+* Производитель
+* Модель
+* Ёмкость
+* Интерфейс (SATA/NVMe и т.д.)
+
+Особенности:
+
+* Один ко многим (device → storage devices)
+* Возможность отдельного учёта и перемещения
+
+---
+
+### 4. Прочая электроника
+
+Типы:
+
+* Телевизоры
+* Проекторы
+* Доски и т.д.
+
+Поля:
+
+* display_name
+* Серийный номер (обязательный)
+* Инвентарный номер (опциональный)
+
+Без технических характеристик (CPU/RAM)
+
+---
+
+### 5. Массовые операции (КРИТИЧЕСКИ ВАЖНО)
+
+Реализовать batch операции:
+
+* Массовая выдача
+* Массовая сдача
+* Массовое перемещение
+
+Требования:
+
+* Выбор нескольких устройств
+* Одна операция → много записей
+* Транзакционность (all-or-nothing)
+* Отображение результата (успех / ошибки)
+
+---
+
+### 6. История перемещений (audit trail)
+
+Отдельная сущность:
+
+Поля:
+
+* device_id
+* from_location
+* to_location
+* from_person
+* to_person
+* Тип операции:
+
+  * выдача
+  * возврат
+  * перемещение
+  * ремонт
+* Документ-основание
+* Дата/время
+* Кто выполнил действие
+
+Требования:
+
+* Полная неизменяемая история
+* Нельзя редактировать записи
+* Только append-only
+
+---
+
+### 7. Поиск и фильтрация
+
+* Full-text search
+
+* По:
+
+  * инвентарному номеру
+  * серийному номеру
+  * владельцу
+  * статусу
+  * типу устройства
+  * местоположению
+
+* Расширенные фильтры + быстрый поиск
+
+---
+
+### 8. Экспорт
+
+* Excel / CSV
+* Печать
+* Экспорт с учетом фильтров
+
+---
+
+## Требования к архитектуре:
+
+### 1. Backend:
+
+* Чистая архитектура:
+
+  * entities
+  * repositories
+  * services
+  * DTO
+* Транзакции (особенно для batch операций)
+* Валидация (Zod или аналог)
+* Частичные индексы (для inventory_number)
+* Pagination / sorting / filtering
+* Логирование всех операций
+
+---
+
+### 2. Frontend:
+
+* Next.js App Router
+* Server Components (по максимуму)
+* Client Components для интерактива
+* Suspense + streaming
+* Формы:
+
+  * react-hook-form + zod
+* Data fetching:
+
+  * server-first
+
+---
+
+### 3. UI/UX (очень важно):
+
+Интерфейс уровня enterprise (Linear / Notion / Jira):
+
+* Таблица техники:
+
+  * sticky header
+  * сортировка
+  * фильтры
+  * выбор нескольких строк (checkbox)
+
+* Массовые действия (toolbar)
+
+* Drawer / Modal:
+
+  * создание
+  * редактирование
+  * просмотр карточки
+
+* История устройства (timeline)
+
+* Skeleton loaders
+
+* Empty states
+
+* Error states
+
+* Toast уведомления
+
+---
+
+### 4. Дизайн:
+
+* Минимализм (Vercel / Linear стиль)
+* shadcn/ui
+* Тёмная и светлая тема
+* Максимальная читаемость таблиц
+
+---
+
+### 5. Безопасность:
+
+* RBAC:
+
+  * admin — полный доступ
+  * officer — управление техникой
+  * operator — ограниченные действия
+  * user — только просмотр
+
+* Проверка прав на сервере
+
+* Аудит действий
+
+* Защита от несанкционированного доступа
+
+---
+
+## Ожидаемый результат:
+
+1. ER-диаграмма (описанием)
+2. Структура БД (таблицы, индексы)
+3. Backend:
+
+   * схемы
+   * сервисы
+   * API
+4. Frontend:
+
+   * страницы
+   * компоненты
+5. Примеры ключевых реализаций:
+
+   * batch операции
+   * история перемещений
+   * форма создания устройства
 
 ---
 
 Важно:
-- Пиши production-ready код
-- Избегай устаревших подходов
-- Не упрощай — это enterprise система
+
+* Пиши production-ready код
+* Учитывай масштабирование (тысячи устройств)
+* Не упрощай — это система уровня госструктуры
+* Предлагай улучшения, если видишь архитектурные риски

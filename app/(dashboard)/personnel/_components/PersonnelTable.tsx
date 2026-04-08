@@ -1,7 +1,7 @@
 /**
  * PersonnelTable — Server Component
  * Fetches data directly, renders the table.
- * Wrapped in Suspense by the page — no client-side loading state needed here.
+ * Rows are clickable and link to the detail page.
  */
 
 import Link from "next/link";
@@ -11,6 +11,7 @@ import { getPersonnelList } from "@/lib/personnel.server";
 import type { PersonnelRow } from "@/lib/personnel.server";
 import { STATUS_MAP, PERSONNEL_PAGE_SIZE } from "@/types/personnel";
 import type { PersonnelListParams, SortField, SortDir } from "@/types/personnel";
+import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { PersonnelRowActions } from "./PersonnelRowActions";
 import { PersonnelTableClient } from "./PersonnelTableClient";
@@ -49,7 +50,7 @@ function PersonnelAvatar({ firstName, lastName }: { firstName: string; lastName:
   return (
     <div
       className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
-      style={{ backgroundColor: `hsl(${hue} 60% 45%)` }}
+      style={{ backgroundColor: `hsl(${hue} 55% 48%)` }}
       aria-hidden
     >
       {initials}
@@ -60,11 +61,7 @@ function PersonnelAvatar({ firstName, lastName }: { firstName: string; lastName:
 // ── Sort header cell ────────────────────────────────────────────────────────────
 
 function SortableHeader({
-  field,
-  label,
-  currentSort,
-  currentDir,
-  baseParams,
+  field, label, currentSort, currentDir, baseParams,
 }: {
   field: SortField;
   label: string;
@@ -106,10 +103,7 @@ function SortableHeader({
 // ── Pagination ─────────────────────────────────────────────────────────────────
 
 function Pagination({
-  page,
-  pageCount,
-  total,
-  baseParams,
+  page, pageCount, total, baseParams,
 }: {
   page: number;
   pageCount: number;
@@ -174,21 +168,23 @@ export async function PersonnelTable({
   q,
   status,
   unit,
+  rank,
   page = 1,
   sortBy = "lastName",
   sortDir = "asc",
   highlightId,
 }: PersonnelTableProps) {
   const [result, canEdit, canDelete] = await Promise.all([
-    getPersonnelList({ q, status, unit, page, sortBy, sortDir }),
+    getPersonnelList({ q, status, unit, rank, page, sortBy, sortDir }),
     hasRole("operator"),
     hasRole("admin"),
   ]);
 
   const baseParams: Record<string, string> = {};
-  if (q)     baseParams.q      = q;
+  if (q)      baseParams.q      = q;
   if (status) baseParams.status = status;
-  if (unit)  baseParams.unit   = unit;
+  if (unit)   baseParams.unit   = unit;
+  if (rank)   baseParams.rank   = rank;
 
   if (result.items.length === 0) {
     return (
@@ -198,7 +194,7 @@ export async function PersonnelTable({
         </div>
         <p className="text-sm font-medium text-foreground">Нет записей</p>
         <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-          {q || status || unit
+          {q || status || unit || rank
             ? "Попробуйте изменить условия фильтрации"
             : "Добавьте первого сотрудника, нажав «Добавить»"}
         </p>
@@ -230,6 +226,9 @@ export async function PersonnelTable({
               <th className="px-2 py-3 text-left">
                 <SortableHeader field="status" label="Статус" currentSort={sortBy} currentDir={sortDir} baseParams={baseParams} />
               </th>
+              <th className="px-2 py-3 text-left hidden xl:table-cell">
+                <SortableHeader field="createdAt" label="Добавлен" currentSort={sortBy} currentDir={sortDir} baseParams={baseParams} />
+              </th>
               <th className="px-4 py-3 w-8">
                 <span className="sr-only">Действия</span>
               </th>
@@ -259,7 +258,7 @@ export async function PersonnelTable({
   );
 }
 
-// ── Individual row (needs client for actions) ─────────────────────────────────
+// ── Individual row ────────────────────────────────────────────────────────────
 
 function PersonnelRow({
   row,
@@ -282,29 +281,63 @@ function PersonnelRow({
         isHighlighted && "bg-primary/5 ring-1 ring-inset ring-primary/20"
       )}
     >
+      {/* Avatar — links to detail */}
       <td className="pl-4 pr-2 py-3">
-        <PersonnelAvatar firstName={row.firstName} lastName={row.lastName} />
+        <Link
+          href={`/personnel/${row.id}` as Route}
+          className="block focus:outline-none focus:ring-2 focus:ring-ring rounded-full"
+          tabIndex={-1}
+          aria-hidden
+        >
+          <PersonnelAvatar firstName={row.firstName} lastName={row.lastName} />
+        </Link>
       </td>
+
+      {/* Name — links to detail */}
       <td className="px-2 py-3">
-        <div>
-          <p className="font-medium text-foreground leading-tight">{fullName}</p>
-          {row.personnelNumber && (
-            <p className="text-xs text-muted-foreground mt-0.5 font-mono">{row.personnelNumber}</p>
+        <Link
+          href={`/personnel/${row.id}` as Route}
+          className={cn(
+            "block group/link focus:outline-none",
+            "rounded-sm focus:ring-2 focus:ring-ring"
           )}
-        </div>
+        >
+          <p className={cn(
+            "font-medium leading-tight transition-colors",
+            "text-foreground group-hover/link:text-primary"
+          )}>
+            {fullName}
+          </p>
+          {row.personnelNumber && (
+            <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+              {row.personnelNumber}
+            </p>
+          )}
+        </Link>
       </td>
+
       <td className="px-2 py-3">
-        <span className="text-foreground">{row.rank}</span>
+        <span className="text-foreground text-sm">{row.rank}</span>
       </td>
+
       <td className="px-2 py-3 hidden md:table-cell">
-        <span className="text-muted-foreground">{row.position ?? "—"}</span>
+        <span className="text-muted-foreground text-sm">{row.position ?? "—"}</span>
       </td>
+
       <td className="px-2 py-3 hidden lg:table-cell">
-        <span className="text-muted-foreground">{row.unit ?? "—"}</span>
+        <span className="text-muted-foreground text-sm">{row.unit ?? "—"}</span>
       </td>
+
       <td className="px-2 py-3">
         <StatusBadge status={row.status} />
       </td>
+
+      <td className="px-2 py-3 hidden xl:table-cell">
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {formatDate(row.createdAt)}
+        </span>
+      </td>
+
       <td className="pl-2 pr-4 py-3">
         <PersonnelTableClient
           id={row.id}

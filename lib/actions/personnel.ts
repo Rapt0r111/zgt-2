@@ -7,8 +7,9 @@
  *   1. Enforces RBAC via requireRole()
  *   2. Validates input with Zod
  *   3. Performs DB operation
- *   4. Revalidates affected paths
- *   5. Returns typed result
+ *   4. Updates search_vector for FTS
+ *   5. Revalidates affected paths
+ *   6. Returns typed result
  */
 
 import { revalidatePath } from "next/cache";
@@ -18,6 +19,7 @@ import { eq } from "drizzle-orm";
 import { requireRole, getCurrentUser } from "@/lib/auth.server";
 import { PersonnelFormSchema } from "@/types/personnel";
 import type { PersonnelFormValues } from "@/types/personnel";
+import { refreshSearchVector } from "@/lib/personnel.server";
 import { z } from "zod";
 
 export interface PersonnelActionResult {
@@ -59,6 +61,11 @@ export async function createPersonnel(
         createdBy:       user?.id   ?? null,
       })
       .returning({ id: personnel.id });
+
+    // Populate FTS search vector (fire-and-forget — non-critical)
+    refreshSearchVector(created.id).catch((e) =>
+      console.warn("[createPersonnel] search_vector refresh failed:", e)
+    );
 
     revalidatePath("/personnel");
     revalidatePath("/");
@@ -111,7 +118,13 @@ export async function updatePersonnel(
       })
       .where(eq(personnel.id, id));
 
+    // Refresh FTS vector after update
+    refreshSearchVector(id).catch((e) =>
+      console.warn("[updatePersonnel] search_vector refresh failed:", e)
+    );
+
     revalidatePath("/personnel");
+    revalidatePath(`/personnel/${id}`);
     revalidatePath("/");
 
     return { success: true, id };

@@ -4,7 +4,7 @@
  * Architecture:
  *   - Server Component reads searchParams, drives all data fetching
  *   - PersonnelStats / PersonnelTable are Server Components (Suspense-streamed)
- *   - PersonnelFilters is a Client Component (nuqs URL state)
+ *   - PersonnelFilters is a Client Component (nuqs URL state, debounced search)
  *   - PersonnelFormDrawer is a Client Component (Sheet with react-hook-form)
  *   - RBAC enforced server-side via hasRole()
  */
@@ -12,15 +12,15 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Users } from "lucide-react";
-import { PersonnelFilters }    from "./_components/PersonnelFilters";
-import { PersonnelTable }      from "./_components/PersonnelTable";
-import { PersonnelStats }      from "./_components/PersonnelStats";
-import { PersonnelFormDrawer } from "./_components/PersonnelFormDrawer";
+import { PersonnelFilters }      from "./_components/PersonnelFilters";
+import { PersonnelTable }        from "./_components/PersonnelTable";
+import { PersonnelStats }        from "./_components/PersonnelStats";
+import { PersonnelFormDrawer }   from "./_components/PersonnelFormDrawer";
 import { ExportPersonnelButton } from "./_components/ExportButton";
-import { getDistinctUnits }    from "@/lib/personnel.server";
-import { hasRole }             from "@/lib/auth.server";
+import { getDistinctUnits }      from "@/lib/personnel.server";
+import { hasRole }               from "@/lib/auth.server";
 import type { SortField, SortDir, PersonnelStatus } from "@/types/personnel";
-import { SORT_FIELDS }         from "@/types/personnel";
+import { SORT_FIELDS }           from "@/types/personnel";
 
 export const metadata: Metadata = {
   title: "Личный состав — ЗГТ",
@@ -65,6 +65,7 @@ interface PersonnelPageProps {
     q?:         string;
     status?:    string;
     unit?:      string;
+    rank?:      string;
     page?:      string;
     sortBy?:    string;
     sortDir?:   string;
@@ -77,20 +78,19 @@ interface PersonnelPageProps {
 export default async function PersonnelPage({ searchParams }: PersonnelPageProps) {
   const params = await searchParams;
 
-  // Validate / sanitize URL params
-  const q         = params.q?.trim() ?? "";
-  const status    = (["active", "detached", "hospital", "leave", "dismissed"].includes(params.status ?? "")
+  const q       = params.q?.trim() ?? "";
+  const status  = (["active", "detached", "hospital", "leave", "dismissed"].includes(params.status ?? "")
     ? params.status
     : "") as PersonnelStatus | "";
-  const unit      = params.unit ?? "";
-  const page      = Math.max(1, Number(params.page ?? "1"));
-  const sortBy    = (SORT_FIELDS.includes(params.sortBy as SortField)
+  const unit    = params.unit ?? "";
+  const rank    = params.rank ?? "";
+  const page    = Math.max(1, Number(params.page ?? "1"));
+  const sortBy  = (SORT_FIELDS.includes(params.sortBy as SortField)
     ? params.sortBy
     : "lastName") as SortField;
-  const sortDir   = (params.sortDir === "desc" ? "desc" : "asc") as SortDir;
+  const sortDir = (params.sortDir === "desc" ? "desc" : "asc") as SortDir;
   const highlight = params.highlight;
 
-  // Parallel-fetch config data + permissions
   const [units, canCreate] = await Promise.all([
     getDistinctUnits(),
     hasRole("operator"),
@@ -128,13 +128,14 @@ export default async function PersonnelPage({ searchParams }: PersonnelPageProps
 
       {/* ── Table (streamed) ───────────────────────────────────────────────── */}
       <Suspense
-        key={`${q}-${status}-${unit}-${page}-${sortBy}-${sortDir}`}
+        key={`${q}-${status}-${unit}-${rank}-${page}-${sortBy}-${sortDir}`}
         fallback={<TableSkeleton />}
       >
         <PersonnelTable
           q={q}
           status={status}
           unit={unit}
+          rank={rank}
           page={page}
           sortBy={sortBy}
           sortDir={sortDir}

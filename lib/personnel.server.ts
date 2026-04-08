@@ -58,6 +58,7 @@ export async function getPersonnelList(
     q,
     status,
     unit,
+    rank,
     page = 1,
     sortBy = "lastName",
     sortDir = "asc",
@@ -75,6 +76,7 @@ export async function getPersonnelList(
         ilike(personnel.personnelNumber, term),
         ilike(personnel.position,        term),
         ilike(personnel.unit,            term),
+        ilike(personnel.rank,            term),
       )!
     );
   }
@@ -85,6 +87,10 @@ export async function getPersonnelList(
 
   if (unit?.trim()) {
     conditions.push(ilike(personnel.unit, `%${unit.trim()}%`));
+  }
+
+  if (rank?.trim()) {
+    conditions.push(eq(personnel.rank, rank.trim()));
   }
 
   const where = and(...conditions);
@@ -174,4 +180,24 @@ export async function getPersonnelStats(): Promise<PersonnelStats> {
     leave:     map.leave     ?? 0,
     dismissed: map.dismissed ?? 0,
   };
+}
+
+// ── Update search vector helper (call after insert/update) ───────────────────
+
+export async function refreshSearchVector(personnelId: string): Promise<void> {
+  await db.execute(sql`
+    UPDATE personnel
+    SET search_vector = to_tsvector(
+      'russian',
+      coalesce(last_name, '')  || ' ' ||
+      coalesce(first_name, '') || ' ' ||
+      coalesce(middle_name, '') || ' ' ||
+      coalesce(personnel_number, '') || ' ' ||
+      coalesce(rank, '') || ' ' ||
+      coalesce(position, '') || ' ' ||
+      coalesce(unit, '') || ' ' ||
+      coalesce(notes, '')
+    )
+    WHERE id = ${personnelId}
+  `);
 }
