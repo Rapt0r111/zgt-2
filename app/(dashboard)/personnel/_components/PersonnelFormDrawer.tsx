@@ -2,8 +2,7 @@
 
 /**
  * PersonnelFormDrawer — manages drawer open/close state,
- * listens for personnel:edit custom events from the table rows,
- * and fetches edit data on demand.
+ * listens for personnel:edit and personnel:create custom events.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -29,9 +28,9 @@ export function PersonnelFormDrawer({ canCreate }: { canCreate: boolean }) {
   const [editData,   setEditData]   = useState<PersonnelRow | null>(null);
   const [isFetching, setIsFetching] = useState(false);
 
-  // Listen for "personnel:edit" events dispatched by PersonnelTableClient
+  // Listen for "personnel:edit" events dispatched by table rows / detail page
   useEffect(() => {
-    const handler = async (e: Event) => {
+    const editHandler = async (e: Event) => {
       const detail = (e as CustomEvent<{ id: string }>).detail;
       if (!detail?.id) return;
 
@@ -43,7 +42,7 @@ export function PersonnelFormDrawer({ canCreate }: { canCreate: boolean }) {
       try {
         const res = await fetch(`/api/personnel/${detail.id}`);
         if (res.ok) {
-          const data = await res.json() as PersonnelRow;
+          const data = (await res.json()) as PersonnelRow;
           setEditData(data);
         }
       } catch {
@@ -53,8 +52,19 @@ export function PersonnelFormDrawer({ canCreate }: { canCreate: boolean }) {
       }
     };
 
-    window.addEventListener("personnel:edit", handler);
-    return () => window.removeEventListener("personnel:edit", handler);
+    // Listen for "personnel:create" dispatched by CommandPalette
+    const createHandler = () => {
+      setMode("create");
+      setEditData(null);
+      setIsOpen(true);
+    };
+
+    window.addEventListener("personnel:edit",   editHandler);
+    window.addEventListener("personnel:create", createHandler);
+    return () => {
+      window.removeEventListener("personnel:edit",   editHandler);
+      window.removeEventListener("personnel:create", createHandler);
+    };
   }, []);
 
   const openCreate = useCallback(() => {
@@ -63,15 +73,11 @@ export function PersonnelFormDrawer({ canCreate }: { canCreate: boolean }) {
     setIsOpen(true);
   }, []);
 
-  const handleClose = useCallback(() => setIsOpen(false), []);
-
-  const handleSuccess = useCallback((_id: string) => {
-    setIsOpen(false);
-  }, []);
+  const handleClose   = useCallback(() => setIsOpen(false), []);
+  const handleSuccess = useCallback((_id: string) => setIsOpen(false), []);
 
   return (
     <>
-      {/* "Add" button in the page header */}
       {canCreate && (
         <button
           onClick={openCreate}

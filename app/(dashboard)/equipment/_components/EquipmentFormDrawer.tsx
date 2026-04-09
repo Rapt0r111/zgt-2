@@ -2,7 +2,7 @@
 
 /**
  * EquipmentFormDrawer — Sheet with create/edit form.
- * Listens for "equipment:edit" custom events.
+ * Listens for "equipment:edit" and "equipment:create" custom events.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -21,7 +21,8 @@ export function EquipmentFormDrawer({ canCreate }: { canCreate: boolean }) {
   const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
-    const handler = async (e: Event) => {
+    // Edit existing device
+    const editHandler = async (e: Event) => {
       const detail = (e as CustomEvent<{ id: string }>).detail;
       if (!detail?.id) return;
 
@@ -40,12 +41,23 @@ export function EquipmentFormDrawer({ canCreate }: { canCreate: boolean }) {
       }
     };
 
-    window.addEventListener("equipment:edit", handler);
-    return () => window.removeEventListener("equipment:edit", handler);
+    // Create new device — dispatched by CommandPalette
+    const createHandler = () => {
+      setMode("create");
+      setEditData(null);
+      setIsOpen(true);
+    };
+
+    window.addEventListener("equipment:edit",   editHandler);
+    window.addEventListener("equipment:create", createHandler);
+    return () => {
+      window.removeEventListener("equipment:edit",   editHandler);
+      window.removeEventListener("equipment:create", createHandler);
+    };
   }, []);
 
-  const openCreate  = useCallback(() => { setMode("create"); setEditData(null); setIsOpen(true); }, []);
-  const handleClose = useCallback(() => setIsOpen(false), []);
+  const openCreate    = useCallback(() => { setMode("create"); setEditData(null); setIsOpen(true); }, []);
+  const handleClose   = useCallback(() => setIsOpen(false), []);
   const handleSuccess = useCallback(() => setIsOpen(false), []);
 
   return (
