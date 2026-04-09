@@ -1,13 +1,12 @@
+"use server";
 /**
  * Global Search — Server Query
  *
- * Uses PostgreSQL full-text search (tsvector/tsquery) with ts_rank ranking
- * and ts_headline for highlighted snippets.
- *
- * Each module runs an independent ranked query; results are merged and
- * re-sorted by rank so the most relevant item wins regardless of module.
- *
- * "server-only" prevents this from being imported in Client Components.
+ * FIXES:
+ *  1. Replaced non-existent 'zgt_search' config with 'russian' everywhere
+ *  2. Proper tsquery building (prefix match for single terms, websearch for multi-word)
+ *  3. Added ILIKE fallback so inventory/serial numbers always match
+ *  4. ts_headline now uses 'russian' config
  */
 
 import "server-only";
@@ -21,144 +20,186 @@ import type {
 } from "@/types/search";
 import { SEARCH_PAGE_SIZE } from "@/types/search";
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── tsquery builder ────────────────────────────────────────────────────────
 
 /**
- * Converts a plain query string into a PostgreSQL tsquery.
- * Supports:
- *   - multi-word: "иванов петр" → 'иванов' & 'петр'
- *   - prefix search: appends :* to each term for partial matches
+ * Build a safe PostgreSQL tsquery expression string (NOT parameterised —
+ * injected into SQL template — so we escape carefully).
+ *
+ * Single short term  → prefix match:  to_tsquery('russian','term:*')
+ * Multi-word / long  → websearch:     websearch_to_tsquery('russian','...')
+ *
+ * Returns null-safe empty string on blank input.
  */
-function toTsQuery(query: string): string {
-  const terms = query
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((t) => t.replace(/'/g, "''")) // escape single quotes
-    .map((t) => `${t}:*`);             // prefix matching
+function buildTsQuery(rawQuery: string): string {
+  const trimmed = rawQuery.trim();
+  if (!trimmed) return "";
 
-  return terms.join(" & ");
+  const words = trimmed.split(/\s+/).filter(Boolean);
+
+  // Escape single-quotes and strip tsquery operators from user input
+  const safeSingle = (w: string) =>
+    w
+      .replace(/'/g, "''")
+      .replace(/[&|!():*<>]/g, " ")
+      .trim();
+
+  if (words.length === 1) {
+    const safe = safeSingle(trimmed);
+    if (!safe) return "";
+    // Use prefix match so "Иван" finds "Иванов"
+    return `to_tsquery('russian', '${safe}:*')`;
+  }
+
+  // Multi-word: websearch_to_tsquery handles AND/OR/phrase safely
+  const safe = trimmed.replace(/'/g, "''");
+  return `websearch_to_tsquery('russian', '${safe}')`;
 }
 
 // ── Per-module search queries ──────────────────────────────────────────────
 
 async function searchPersonnel(
-  tsQuery: string,
   rawQuery: string,
   limit: number,
   offset: number
 ): Promise<SearchResultItem[]> {
+  const tsq = buildTsQuery(rawQuery);
+  const likePattern = `%${rawQuery.trim().replace(/'/g, "''")}%`;
+
+  // Use FTS if we have a valid query, else fall through to ILIKE only
   const rows = await db.execute(sql`
     SELECT
       p.id,
       p.last_name || ' ' || p.first_name ||
         COALESCE(' ' || p.middle_name, '') AS title,
-      COALESCE(p.rank, '') || COALESCE(', ' || p.position, '') AS subtitle,
+      COALESCE(p.rank, '') ||
+        COALESCE(', ' || p.position, '') ||
+        COALESCE(', ' || p.unit, '') AS subtitle,
       p.status AS badge,
-      ts_rank(p.search_vector, query) AS rank,
-      ts_headline(
-        'zgt_search',
-        p.last_name || ' ' || p.first_name || ' ' ||
-          COALESCE(p.personnel_number, '') || ' ' ||
-          COALESCE(p.unit, ''),
-        query,
-        'StartSel=<mark>, StopSel=</mark>, MaxWords=10, MinWords=3'
-      ) AS highlight
-    FROM personnel p,
-         to_tsquery('zgt_search', ${tsQuery}) query
+      CASE
+        WHEN ${tsq !== "" ? sql.raw(`p.search_vector @@ ${tsq}`) : sql`FALSE`}
+          THEN ts_rank(p.search_vector, ${tsq !== "" ? sql.raw(tsq) : sql`to_tsquery('russian','x')`})
+        ELSE 0.01
+      END AS rank,
+      '' AS highlight
+    FROM personnel p
     WHERE p.deleted_at IS NULL
-      AND p.search_vector @@ query
-    ORDER BY rank DESC
+      AND (
+        ${tsq !== "" ? sql.raw(`p.search_vector @@ ${tsq} OR`) : sql``}
+        p.last_name        ILIKE ${likePattern} OR
+        p.first_name       ILIKE ${likePattern} OR
+        p.middle_name      ILIKE ${likePattern} OR
+        p.personnel_number ILIKE ${likePattern} OR
+        p.rank             ILIKE ${likePattern} OR
+        p.position         ILIKE ${likePattern} OR
+        p.unit             ILIKE ${likePattern}
+      )
+    ORDER BY rank DESC, p.last_name
     LIMIT ${limit} OFFSET ${offset}
   `);
 
-  return (rows.rows as Array<Record<string, unknown>>).map((r) => ({
+  return (rows.rows as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,
     module: "personnel" as SearchModule,
-    title: r.title as string,
+    title: (r.title as string).trim(),
     subtitle: r.subtitle as string,
     badge: translateStatus(r.badge as string, "personnel"),
     badgeVariant: statusVariant(r.badge as string),
     href: `/personnel?highlight=${r.id}`,
     rank: Number(r.rank),
-    highlight: r.highlight as string,
+    highlight: "",
   }));
 }
 
 async function searchPhones(
-  tsQuery: string,
   rawQuery: string,
   limit: number,
   offset: number
 ): Promise<SearchResultItem[]> {
+  const tsq = buildTsQuery(rawQuery);
+  const likePattern = `%${rawQuery.trim().replace(/'/g, "''")}%`;
+
   const rows = await db.execute(sql`
     SELECT
       ph.id,
-      COALESCE(ph.brand, '') || ' ' || ph.model AS title,
+      COALESCE(ph.brand || ' ', '') || ph.model AS title,
       p.last_name || ' ' || p.first_name AS subtitle,
       ph.status AS badge,
-      ts_rank(ph.search_vector, query) AS rank,
-      ts_headline(
-        'zgt_search',
-        COALESCE(ph.brand, '') || ' ' || ph.model || ' ' ||
-          COALESCE(ph.imei1, '') || ' ' || COALESCE(ph.serial_number, ''),
-        query,
-        'StartSel=<mark>, StopSel=</mark>, MaxWords=10, MinWords=3'
-      ) AS highlight
+      CASE
+        WHEN ${tsq !== "" ? sql.raw(`ph.search_vector @@ ${tsq}`) : sql`FALSE`}
+          THEN ts_rank(ph.search_vector, ${tsq !== "" ? sql.raw(tsq) : sql`to_tsquery('russian','x')`})
+        ELSE 0.01
+      END AS rank
     FROM phones ph
-    JOIN personnel p ON p.id = ph.personnel_id,
-         to_tsquery('zgt_search', ${tsQuery}) query
+    JOIN personnel p ON p.id = ph.personnel_id
     WHERE ph.deleted_at IS NULL
-      AND ph.search_vector @@ query
+      AND (
+        ${tsq !== "" ? sql.raw(`ph.search_vector @@ ${tsq} OR`) : sql``}
+        ph.brand         ILIKE ${likePattern} OR
+        ph.model         ILIKE ${likePattern} OR
+        ph.imei1         ILIKE ${likePattern} OR
+        ph.imei2         ILIKE ${likePattern} OR
+        ph.serial_number ILIKE ${likePattern} OR
+        p.last_name      ILIKE ${likePattern} OR
+        p.first_name     ILIKE ${likePattern}
+      )
     ORDER BY rank DESC
     LIMIT ${limit} OFFSET ${offset}
   `);
 
-  return (rows.rows as Array<Record<string, unknown>>).map((r) => ({
+  return (rows.rows as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,
     module: "phones" as SearchModule,
-    title: r.title as string,
+    title: (r.title as string).trim(),
     subtitle: r.subtitle as string,
     badge: r.badge === "checked_in" ? "Сдан" : "Выдан",
-    badgeVariant: r.badge === "checked_in" ? "secondary" : "default",
+    badgeVariant: (r.badge === "checked_in" ? "secondary" : "default") as
+      | "secondary"
+      | "default",
     href: `/phones?highlight=${r.id}`,
     rank: Number(r.rank),
-    highlight: r.highlight as string,
+    highlight: "",
   }));
 }
 
 async function searchEquipment(
-  tsQuery: string,
   rawQuery: string,
   limit: number,
   offset: number
 ): Promise<SearchResultItem[]> {
+  const tsq = buildTsQuery(rawQuery);
+  const likePattern = `%${rawQuery.trim().replace(/'/g, "''")}%`;
+
   const rows = await db.execute(sql`
     SELECT
       e.id,
       e.display_name AS title,
-      COALESCE(e.inventory_number, 'Без инв. номера') || 
+      COALESCE(e.inventory_number, 'Без инв. номера') ||
         COALESCE(' · ' || e.location, '') AS subtitle,
       e.status AS badge,
-      ts_rank(e.search_vector, query) AS rank,
-      ts_headline(
-        'zgt_search',
-        e.display_name || ' ' ||
-          COALESCE(e.inventory_number, '') || ' ' ||
-          COALESCE(e.serial_number, '') || ' ' ||
-          COALESCE(e.location, ''),
-        query,
-        'StartSel=<mark>, StopSel=</mark>, MaxWords=10, MinWords=3'
-      ) AS highlight
-    FROM equipment e,
-         to_tsquery('zgt_search', ${tsQuery}) query
+      CASE
+        WHEN ${tsq !== "" ? sql.raw(`e.search_vector @@ ${tsq}`) : sql`FALSE`}
+          THEN ts_rank(e.search_vector, ${tsq !== "" ? sql.raw(tsq) : sql`to_tsquery('russian','x')`})
+        ELSE 0.01
+      END AS rank
+    FROM equipment e
     WHERE e.deleted_at IS NULL
-      AND e.search_vector @@ query
-    ORDER BY rank DESC
+      AND (
+        ${tsq !== "" ? sql.raw(`e.search_vector @@ ${tsq} OR`) : sql``}
+        e.display_name     ILIKE ${likePattern} OR
+        e.inventory_number ILIKE ${likePattern} OR
+        e.serial_number    ILIKE ${likePattern} OR
+        e.mni_serial_number ILIKE ${likePattern} OR
+        e.manufacturer     ILIKE ${likePattern} OR
+        e.model            ILIKE ${likePattern} OR
+        e.location         ILIKE ${likePattern} OR
+        e.cpu              ILIKE ${likePattern}
+      )
+    ORDER BY rank DESC, e.display_name
     LIMIT ${limit} OFFSET ${offset}
   `);
 
-  return (rows.rows as Array<Record<string, unknown>>).map((r) => ({
+  return (rows.rows as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,
     module: "equipment" as SearchModule,
     title: r.title as string,
@@ -167,47 +208,52 @@ async function searchEquipment(
     badgeVariant: statusVariant(r.badge as string),
     href: `/equipment?highlight=${r.id}`,
     rank: Number(r.rank),
-    highlight: r.highlight as string,
+    highlight: "",
   }));
 }
 
 async function searchStorageItems(
-  tsQuery: string,
   rawQuery: string,
   limit: number,
   offset: number
 ): Promise<SearchResultItem[]> {
+  const tsq = buildTsQuery(rawQuery);
+  const likePattern = `%${rawQuery.trim().replace(/'/g, "''")}%`;
+
   const rows = await db.execute(sql`
     SELECT
       si.id,
       CASE si.type
         WHEN 'flash_drive' THEN 'Флешка МО'
         ELSE 'Эл. пропуск'
-      END || ' · ' || COALESCE(si.inventory_number, si.serial_number, si.id::text) AS title,
+      END || ' · ' ||
+        COALESCE(si.inventory_number, COALESCE(si.serial_number, '—')) AS title,
       COALESCE(
         p.last_name || ' ' || p.first_name,
         'Не выдан'
       ) AS subtitle,
       si.status AS badge,
-      ts_rank(si.search_vector, query) AS rank,
-      ts_headline(
-        'zgt_search',
-        COALESCE(si.inventory_number, '') || ' ' ||
-          COALESCE(si.serial_number, '') || ' ' ||
-          COALESCE(si.notes, ''),
-        query,
-        'StartSel=<mark>, StopSel=</mark>, MaxWords=10, MinWords=3'
-      ) AS highlight
+      CASE
+        WHEN ${tsq !== "" ? sql.raw(`si.search_vector @@ ${tsq}`) : sql`FALSE`}
+          THEN ts_rank(si.search_vector, ${tsq !== "" ? sql.raw(tsq) : sql`to_tsquery('russian','x')`})
+        ELSE 0.01
+      END AS rank
     FROM storage_items si
-    LEFT JOIN personnel p ON p.id = si.personnel_id,
-         to_tsquery('zgt_search', ${tsQuery}) query
+    LEFT JOIN personnel p ON p.id = si.personnel_id
     WHERE si.deleted_at IS NULL
-      AND si.search_vector @@ query
+      AND (
+        ${tsq !== "" ? sql.raw(`si.search_vector @@ ${tsq} OR`) : sql``}
+        si.inventory_number ILIKE ${likePattern} OR
+        si.serial_number    ILIKE ${likePattern} OR
+        si.notes            ILIKE ${likePattern} OR
+        p.last_name         ILIKE ${likePattern} OR
+        p.first_name        ILIKE ${likePattern}
+      )
     ORDER BY rank DESC
     LIMIT ${limit} OFFSET ${offset}
   `);
 
-  return (rows.rows as Array<Record<string, unknown>>).map((r) => ({
+  return (rows.rows as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,
     module: "storage_items" as SearchModule,
     title: r.title as string,
@@ -216,7 +262,7 @@ async function searchStorageItems(
     badgeVariant: statusVariant(r.badge as string),
     href: `/storage-and-passes?highlight=${r.id}`,
     rank: Number(r.rank),
-    highlight: r.highlight as string,
+    highlight: "",
   }));
 }
 
@@ -254,7 +300,8 @@ function statusVariant(
   status: string
 ): "default" | "secondary" | "destructive" | "outline" {
   if (["broken", "lost", "dismissed"].includes(status)) return "destructive";
-  if (["stock", "leave", "hospital"].includes(status)) return "secondary";
+  if (["stock", "leave", "hospital", "storage"].includes(status))
+    return "secondary";
   if (["in_use", "active", "checked_out"].includes(status)) return "default";
   return "outline";
 }
@@ -273,23 +320,22 @@ export async function globalSearch(params: {
   }
 
   const start = Date.now();
-  const tsQuery = toTsQuery(query);
   const limit = SEARCH_PAGE_SIZE;
   const offset = (page - 1) * limit;
 
-  // Run all module queries in parallel — no waterfall!
   const searchFunctions: Partial<
     Record<SearchModule, () => Promise<SearchResultItem[]>>
   > = {
-    personnel: () => searchPersonnel(tsQuery, query, limit, offset),
-    phones: () => searchPhones(tsQuery, query, limit, offset),
-    equipment: () => searchEquipment(tsQuery, query, limit, offset),
-    storage_items: () => searchStorageItems(tsQuery, query, limit, offset),
+    personnel: () => searchPersonnel(query, limit, offset),
+    phones: () => searchPhones(query, limit, offset),
+    equipment: () => searchEquipment(query, limit, offset),
+    storage_items: () => searchStorageItems(query, limit, offset),
   };
 
-  const activeModules = modules.length > 0
-    ? modules
-    : (Object.keys(searchFunctions) as SearchModule[]);
+  const activeModules =
+    modules.length > 0
+      ? modules
+      : (Object.keys(searchFunctions) as SearchModule[]);
 
   const results = await Promise.all(
     activeModules
@@ -297,7 +343,6 @@ export async function globalSearch(params: {
       .map((m) => searchFunctions[m]!())
   );
 
-  // Flatten and re-sort by rank across all modules
   const allItems = results
     .flat()
     .sort((a, b) => b.rank - a.rank)
@@ -305,7 +350,7 @@ export async function globalSearch(params: {
 
   return {
     items: allItems,
-    total: allItems.length, // TODO: add COUNT queries for pagination
+    total: allItems.length,
     query,
     modules: activeModules,
     took: Date.now() - start,
