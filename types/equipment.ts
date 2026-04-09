@@ -6,11 +6,11 @@ import { z } from "zod";
 // ── Device type (UI concept → maps to db category) ────────────────────────
 
 export const DEVICE_TYPES = [
-  { value: "pэвм",     label: "ПЭВМ",    category: "workstation" },
-  { value: "arm",      label: "АРМ",     category: "workstation" },
-  { value: "laptop",   label: "Ноутбук", category: "laptop"      },
-  { value: "server",   label: "Сервер",  category: "server"      },
-  { value: "other",    label: "Прочее",  category: "other"       },
+  { value: "pэвм",   label: "ПЭВМ",    category: "workstation" },
+  { value: "arm",    label: "АРМ",     category: "workstation" },
+  { value: "laptop", label: "Ноутбук", category: "laptop"      },
+  { value: "server", label: "Сервер",  category: "server"      },
+  { value: "other",  label: "Прочее",  category: "other"       },
 ] as const;
 
 export type DeviceTypeValue = (typeof DEVICE_TYPES)[number]["value"];
@@ -22,10 +22,10 @@ export const DEVICE_TYPE_LABELS: Record<string, string> = Object.fromEntries(
 // ── Status ─────────────────────────────────────────────────────────────────
 
 export const EQUIPMENT_STATUSES = [
-  { value: "in_use",  label: "В работе",   color: "emerald" },
-  { value: "storage", label: "На складе",  color: "blue"    },
-  { value: "repair",  label: "В ремонте",  color: "amber"   },
-  { value: "broken",  label: "Сломан",     color: "red"     },
+  { value: "in_use",  label: "В работе",  color: "emerald" },
+  { value: "storage", label: "На складе", color: "blue"    },
+  { value: "repair",  label: "В ремонте", color: "amber"   },
+  { value: "broken",  label: "Сломан",    color: "red"     },
 ] as const;
 
 export type EquipmentStatus = (typeof EQUIPMENT_STATUSES)[number]["value"];
@@ -42,18 +42,20 @@ export type StorageTypeValue = (typeof STORAGE_TYPES)[number];
 // ── Transfer operation types ──────────────────────────────────────────────
 
 export const TRANSFER_TYPES = [
-  { value: "issued",          label: "Выдача"          },
-  { value: "returned",        label: "Возврат"         },
-  { value: "sent_repair",     label: "Сдан в ремонт"   },
-  { value: "returned_repair", label: "Возвращён из ремонта" },
-  { value: "written_off",     label: "Списан"          },
+  { value: "issued",          label: "Выдача"                  },
+  { value: "returned",        label: "Возврат"                 },
+  { value: "sent_repair",     label: "Сдан в ремонт"           },
+  { value: "returned_repair", label: "Возвращён из ремонта"    },
+  { value: "written_off",     label: "Списан"                  },
 ] as const;
 
 export type TransferTypeValue = (typeof TRANSFER_TYPES)[number]["value"];
 
-export const TRANSFER_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  TRANSFER_TYPES.map((t) => [t.value, t.label])
-);
+export const TRANSFER_TYPE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(TRANSFER_TYPES.map((t) => [t.value, t.label])),
+  // "issued" with from_location set is rendered as "Перемещение"
+  // — resolved in EquipmentHistory component via context check
+};
 
 // ── Sort ───────────────────────────────────────────────────────────────────
 
@@ -77,9 +79,11 @@ export const StorageDeviceSchema = z.object({
   id:              z.string().uuid().optional(),
   type:            z.string().max(16).optional(),
   inventoryNumber: z.string().max(64).optional(),
-  serialNumber:    z.string().max(128).min(1, "Обязательное поле"),
+  // serialNumber required — DB has NOT NULL
+  serialNumber:    z.string().max(128).min(1, "Серийный номер обязателен"),
   manufacturer:    z.string().max(64).optional(),
   model:           z.string().max(128).optional(),
+  // capacityGb: DB has NOT NULL DEFAULT 0; form treats it as optional
   capacityGb:      z.number().int().positive().optional(),
   interface:       z.string().max(32).optional(),
 });
@@ -104,12 +108,16 @@ export const EquipmentFormSchema = z.object({
   os:          z.string().max(128).optional(),
 
   // Status
-  status:     z.enum(["in_use", "storage", "repair", "broken"]),
-  isWorking:  z.boolean(),
-  location:   z.string().max(256).optional(),
-  personnelId: z.string().uuid().optional(),
+  status:    z.enum(["in_use", "storage", "repair", "broken"]),
+  isWorking: z.boolean(),
+  location:  z.string().max(256).optional(),
 
-  // Kit (completeness)
+  // personnelId: "" means "no owner"; uuid() alone rejects empty string
+  personnelId: z
+    .union([z.string().uuid(), z.literal(""), z.undefined()])
+    .optional(),
+
+  // Kit (completeness — laptops only)
   hasCharger:       z.boolean().optional(),
   isChargerWorking: z.boolean().optional(),
   hasMouse:         z.boolean().optional(),
@@ -125,11 +133,11 @@ export type EquipmentFormValues = z.infer<typeof EquipmentFormSchema>;
 // ── Batch operation schemas ───────────────────────────────────────────────
 
 export const BatchIssueSchema = z.object({
-  ids:          z.array(z.string().uuid()).min(1).max(500),
+  ids:           z.array(z.string().uuid()).min(1).max(500),
   toPersonnelId: z.string().uuid().optional(),
-  toLocation:   z.string().max(256).optional(),
-  documentRef:  z.string().max(128).optional(),
-  notes:        z.string().max(512).optional(),
+  toLocation:    z.string().max(256).optional(),
+  documentRef:   z.string().max(128).optional(),
+  notes:         z.string().max(512).optional(),
 });
 
 export const BatchMoveSchema = z.object({
@@ -138,8 +146,8 @@ export const BatchMoveSchema = z.object({
   notes:      z.string().max(512).optional(),
 });
 
-export type BatchIssueValues   = z.infer<typeof BatchIssueSchema>;
-export type BatchMoveValues    = z.infer<typeof BatchMoveSchema>;
+export type BatchIssueValues = z.infer<typeof BatchIssueSchema>;
+export type BatchMoveValues  = z.infer<typeof BatchMoveSchema>;
 
 // ── List params ───────────────────────────────────────────────────────────
 

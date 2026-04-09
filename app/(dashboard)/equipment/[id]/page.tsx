@@ -1,5 +1,8 @@
 /**
  * /equipment/[id] — Equipment Detail Page
+ *
+ * Fix applied: edit button now uses <EquipmentDetailActions> (client component)
+ * instead of onClick={undefined} + data attribute that was a no-op.
  */
 
 import type { Metadata } from "next";
@@ -8,16 +11,28 @@ import Link from "next/link";
 import { Suspense } from "react";
 import type { Route } from "next";
 import {
-  ArrowLeft, Monitor, Hash, MapPin, User, Cpu, HardDrive,
-  Calendar, RefreshCw, Pencil, Package, History,
+  ArrowLeft,
+  Monitor,
+  Hash,
+  MapPin,
+  User,
+  Cpu,
+  HardDrive,
+  Calendar,
+  RefreshCw,
+  Package,
+  History,
 } from "lucide-react";
 import { getEquipmentById } from "@/lib/equipment.server";
 import { EQUIPMENT_STATUS_MAP } from "@/types/equipment";
 import { formatDateTime, cn } from "@/lib/utils";
 import { hasRole } from "@/lib/auth.server";
 import { EquipmentHistory } from "../_components/EquipmentHistory";
+import { EquipmentDetailActions } from "../_components/EquipmentDetailActions";
 
-interface Props { params: Promise<{ id: string }> }
+interface Props {
+  params: Promise<{ id: string }>;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -26,9 +41,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: `${item.displayName} — ЗГТ` };
 }
 
-function InfoRow({ icon: Icon, label, value, mono }: {
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  mono,
+}: {
   icon: React.ComponentType<{ className?: string }>;
-  label: string; value: string | null | undefined; mono?: boolean;
+  label: string;
+  value: string | null | undefined;
+  mono?: boolean;
 }) {
   if (!value) return null;
   return (
@@ -38,22 +60,43 @@ function InfoRow({ icon: Icon, label, value, mono }: {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-        <p className={cn("text-sm text-foreground font-medium", mono && "font-mono")}>{value}</p>
+        <p className={cn("text-sm text-foreground font-medium", mono && "font-mono")}>
+          {value}
+        </p>
       </div>
     </div>
   );
 }
 
-function KitBadge({ label, present, working }: { label: string; present: boolean | null; working?: boolean | null }) {
+function KitBadge({
+  label,
+  present,
+  working,
+}: {
+  label:    string;
+  present:  boolean | null;
+  working?: boolean | null;
+}) {
   if (present === null) return null;
   return (
-    <div className={cn(
-      "flex items-center justify-between px-3 py-2 rounded-lg text-sm",
-      present ? "bg-emerald-500/5 border border-emerald-500/20" : "bg-muted border border-border"
-    )}>
-      <span className={present ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+    <div
+      className={cn(
+        "flex items-center justify-between px-3 py-2 rounded-lg text-sm",
+        present
+          ? "bg-emerald-500/5 border border-emerald-500/20"
+          : "bg-muted border border-border"
+      )}
+    >
+      <span className={present ? "text-foreground" : "text-muted-foreground"}>
+        {label}
+      </span>
       <div className="flex items-center gap-2">
-        <span className={cn("text-xs font-medium", present ? "text-emerald-600" : "text-muted-foreground")}>
+        <span
+          className={cn(
+            "text-xs font-medium",
+            present ? "text-emerald-600" : "text-muted-foreground"
+          )}
+        >
           {present ? "Есть" : "Нет"}
         </span>
         {present && working !== null && working !== undefined && (
@@ -84,15 +127,21 @@ export default async function EquipmentDetailPage({ params }: Props) {
   };
 
   const categoryLabels: Record<string, string> = {
-    workstation: "ПЭВМ / АРМ", laptop: "Ноутбук", server: "Сервер", other: "Прочее",
+    workstation: "ПЭВМ / АРМ",
+    laptop:      "Ноутбук",
+    server:      "Сервер",
+    other:       "Прочее",
   };
 
-  const hasKit = item.hasCharger !== null || item.hasMouse !== null || item.hasBag !== null;
+  const hasKit =
+    item.hasCharger !== null || item.hasMouse !== null || item.hasBag !== null;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
-      <Link href={"/equipment" as Route}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+      <Link
+        href={"/equipment" as Route}
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
         <ArrowLeft className="w-4 h-4" />
         Вычислительная техника
       </Link>
@@ -108,7 +157,9 @@ export default async function EquipmentDetailPage({ params }: Props) {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-start gap-3">
                 <div>
-                  <h1 className="text-xl font-bold text-foreground leading-tight">{item.displayName}</h1>
+                  <h1 className="text-xl font-bold text-foreground leading-tight">
+                    {item.displayName}
+                  </h1>
                   <p className="text-sm text-muted-foreground mt-1">
                     {categoryLabels[item.category]}
                     {item.manufacturer && <> · {item.manufacturer}</>}
@@ -116,8 +167,12 @@ export default async function EquipmentDetailPage({ params }: Props) {
                   </p>
                 </div>
                 {statusInfo && (
-                  <span className={cn("inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border",
-                    statusColors[statusInfo.color] ?? "bg-muted")}>
+                  <span
+                    className={cn(
+                      "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border",
+                      statusColors[statusInfo.color] ?? "bg-muted"
+                    )}
+                  >
                     {statusInfo.label}
                   </span>
                 )}
@@ -128,16 +183,10 @@ export default async function EquipmentDetailPage({ params }: Props) {
                 </p>
               )}
             </div>
-            {canEdit && (
-              <button
-                onClick={undefined}
-                data-edit-id={item.id}
-                className="h-9 px-3 rounded-lg border border-input text-sm flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Редактировать</span>
-              </button>
-            )}
+
+            {/* FIX: was onClick={undefined} data-edit-id={...} — replaced with
+                 the proper client component that dispatches the edit event */}
+            {canEdit && <EquipmentDetailActions equipmentId={item.id} />}
           </div>
         </div>
       </div>
@@ -150,11 +199,11 @@ export default async function EquipmentDetailPage({ params }: Props) {
             <Hash className="w-4 h-4 text-muted-foreground" />
             Идентификация
           </h2>
-          <InfoRow icon={Hash}    label="Инвентарный номер" value={item.inventoryNumber} mono />
-          <InfoRow icon={Hash}    label="Серийный номер"    value={item.serialNumber}    mono />
+          <InfoRow icon={Hash}    label="Инвентарный номер"  value={item.inventoryNumber} mono />
+          <InfoRow icon={Hash}    label="Серийный номер"     value={item.serialNumber}    mono />
           <InfoRow icon={Hash}    label="Серийный номер МНИ" value={item.mniSerialNumber} mono />
-          <InfoRow icon={Monitor} label="Производитель"     value={item.manufacturer} />
-          <InfoRow icon={Monitor} label="Модель"            value={item.model} />
+          <InfoRow icon={Monitor} label="Производитель"      value={item.manufacturer} />
+          <InfoRow icon={Monitor} label="Модель"             value={item.model} />
         </div>
 
         {/* Specs */}
@@ -163,10 +212,14 @@ export default async function EquipmentDetailPage({ params }: Props) {
             <Cpu className="w-4 h-4 text-muted-foreground" />
             Характеристики
           </h2>
-          <InfoRow icon={Cpu}       label="Процессор"      value={item.cpu} />
-          <InfoRow icon={Cpu}       label="ОЗУ"            value={item.ramGb ? `${item.ramGb} ГБ` : null} />
-          <InfoRow icon={HardDrive} label="Хранилище"      value={item.storageGb ? `${item.storageType ?? ""} ${item.storageGb} ГБ`.trim() : null} />
-          <InfoRow icon={Monitor}   label="ОС"             value={item.os} />
+          <InfoRow icon={Cpu}       label="Процессор"  value={item.cpu} />
+          <InfoRow icon={Cpu}       label="ОЗУ"        value={item.ramGb ? `${item.ramGb} ГБ` : null} />
+          <InfoRow
+            icon={HardDrive}
+            label="Хранилище"
+            value={item.storageGb ? `${item.storageType ?? ""} ${item.storageGb} ГБ`.trim() : null}
+          />
+          <InfoRow icon={Monitor} label="ОС" value={item.os} />
         </div>
 
         {/* Location / Owner */}
@@ -175,10 +228,18 @@ export default async function EquipmentDetailPage({ params }: Props) {
             <MapPin className="w-4 h-4 text-muted-foreground" />
             Размещение
           </h2>
-          <InfoRow icon={MapPin} label="Местоположение" value={item.location} />
-          <InfoRow icon={User}   label="Ответственный"  value={item.personnelName ? `${item.personnelRank ?? ""} ${item.personnelName}`.trim() : null} />
-          <InfoRow icon={Calendar}  label="Добавлено"   value={formatDateTime(item.createdAt)} />
-          <InfoRow icon={RefreshCw} label="Обновлено"   value={formatDateTime(item.updatedAt)} />
+          <InfoRow icon={MapPin}    label="Местоположение" value={item.location} />
+          <InfoRow
+            icon={User}
+            label="Ответственный"
+            value={
+              item.personnelName
+                ? `${item.personnelRank ?? ""} ${item.personnelName}`.trim()
+                : null
+            }
+          />
+          <InfoRow icon={Calendar}  label="Добавлено"  value={formatDateTime(item.createdAt)} />
+          <InfoRow icon={RefreshCw} label="Обновлено"  value={formatDateTime(item.updatedAt)} />
         </div>
 
         {/* Kit */}
@@ -189,9 +250,17 @@ export default async function EquipmentDetailPage({ params }: Props) {
               Комплектность
             </h2>
             <div className="space-y-2">
-              <KitBadge label="Зарядное устройство" present={item.hasCharger} working={item.isChargerWorking} />
-              <KitBadge label="Мышь"                present={item.hasMouse}   working={item.isMouseWorking} />
-              <KitBadge label="Сумка / чехол"       present={item.hasBag} />
+              <KitBadge
+                label="Зарядное устройство"
+                present={item.hasCharger}
+                working={item.isChargerWorking}
+              />
+              <KitBadge
+                label="Мышь"
+                present={item.hasMouse}
+                working={item.isMouseWorking}
+              />
+              <KitBadge label="Сумка / чехол" present={item.hasBag} />
             </div>
           </div>
         )}
@@ -206,17 +275,42 @@ export default async function EquipmentDetailPage({ params }: Props) {
           </h2>
           <div className="space-y-3">
             {item.storageDevices.map((sd) => (
-              <div key={sd.id} className="flex flex-wrap items-start gap-4 p-3 rounded-lg bg-muted/30 border border-border">
+              <div
+                key={sd.id}
+                className="flex flex-wrap items-start gap-4 p-3 rounded-lg bg-muted/30 border border-border"
+              >
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <HardDrive className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-sm">
-                  <div><span className="text-muted-foreground text-xs">Тип:</span> {sd.type ?? "—"}</div>
-                  <div><span className="text-muted-foreground text-xs">Объём:</span> {sd.capacityGb ? `${sd.capacityGb} ГБ` : "—"}</div>
-                  <div><span className="text-muted-foreground text-xs">Интерфейс:</span> {sd.interface ?? "—"}</div>
-                  <div className="font-mono text-xs"><span className="text-muted-foreground">С/Н:</span> {sd.serialNumber}</div>
-                  {sd.inventoryNumber && <div className="font-mono text-xs"><span className="text-muted-foreground">Инв:</span> {sd.inventoryNumber}</div>}
-                  {sd.manufacturer && <div><span className="text-muted-foreground text-xs">Пр-ль:</span> {sd.manufacturer} {sd.model}</div>}
+                  <div>
+                    <span className="text-muted-foreground text-xs">Тип:</span>{" "}
+                    {sd.type ?? "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Объём:</span>{" "}
+                    {sd.capacityGb ? `${sd.capacityGb} ГБ` : "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Интерфейс:</span>{" "}
+                    {sd.interface ?? "—"}
+                  </div>
+                  <div className="font-mono text-xs">
+                    <span className="text-muted-foreground">С/Н:</span>{" "}
+                    {sd.serialNumber}
+                  </div>
+                  {sd.inventoryNumber && (
+                    <div className="font-mono text-xs">
+                      <span className="text-muted-foreground">Инв:</span>{" "}
+                      {sd.inventoryNumber}
+                    </div>
+                  )}
+                  {sd.manufacturer && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Пр-ль:</span>{" "}
+                      {sd.manufacturer} {sd.model}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -230,19 +324,21 @@ export default async function EquipmentDetailPage({ params }: Props) {
           <History className="w-4 h-4 text-muted-foreground" />
           История перемещений
         </h2>
-        <Suspense fallback={
-          <div className="space-y-4 animate-pulse">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
-                <div className="flex-1 space-y-2 pt-1">
-                  <div className="h-4 bg-muted rounded w-1/3" />
-                  <div className="h-3 bg-muted rounded w-2/5" />
+        <Suspense
+          fallback={
+            <div className="space-y-4 animate-pulse">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
+                  <div className="flex-1 space-y-2 pt-1">
+                    <div className="h-4 bg-muted rounded w-1/3" />
+                    <div className="h-3 bg-muted rounded w-2/5" />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        }>
+              ))}
+            </div>
+          }
+        >
           <EquipmentHistory equipmentId={item.id} />
         </Suspense>
       </div>

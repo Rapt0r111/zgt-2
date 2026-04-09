@@ -5,13 +5,14 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Monitor } from "lucide-react";
-import { EquipmentStats }       from "./_components/EquipmentStats";
-import { EquipmentFilters }     from "./_components/EquipmentFilters";
-import { EquipmentTable }       from "./_components/EquipmentTable";
-import { EquipmentFormDrawer }  from "./_components/EquipmentFormDrawer";
+import { EquipmentStats }        from "./_components/EquipmentStats";
+import { EquipmentFilters }      from "./_components/EquipmentFilters";
+import { EquipmentTable }        from "./_components/EquipmentTable";
+import { EquipmentFormDrawer }   from "./_components/EquipmentFormDrawer";
 import { EquipmentBatchToolbar } from "./_components/EquipmentBatchToolbar";
-import { getDistinctLocations } from "@/lib/equipment.server";
-import { hasRole }              from "@/lib/auth.server";
+import { ExportEquipmentButton } from "./_components/ExportEquipmentButton";
+import { getDistinctLocations }  from "@/lib/equipment.server";
+import { hasRole }               from "@/lib/auth.server";
 import type { EquipmentSortField, SortDir, EquipmentStatus } from "@/types/equipment";
 import { EQUIPMENT_SORT_FIELDS } from "@/types/equipment";
 
@@ -32,7 +33,10 @@ function TableSkeleton() {
     <div className="rounded-xl border border-border overflow-hidden animate-pulse">
       <div className="h-11 bg-muted/40 border-b border-border" />
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
+        <div
+          key={i}
+          className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0"
+        >
           <div className="w-4 h-4 rounded bg-muted shrink-0" />
           <div className="flex-1 space-y-1.5">
             <div className="h-3.5 bg-muted rounded w-2/5" />
@@ -64,14 +68,20 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
   const params = await searchParams;
 
   const q        = params.q?.trim() ?? "";
-  const status   = (["in_use", "storage", "repair", "broken"].includes(params.status ?? "")
-    ? params.status : "") as EquipmentStatus | "";
-  const category = params.category ?? "";
-  const location = params.location ?? "";
-  const page     = Math.max(1, Number(params.page ?? "1"));
-  const sortBy   = (EQUIPMENT_SORT_FIELDS.includes(params.sortBy as EquipmentSortField)
-    ? params.sortBy : "displayName") as EquipmentSortField;
-  const sortDir  = (params.sortDir === "desc" ? "desc" : "asc") as SortDir;
+  const status   = (
+    ["in_use", "storage", "repair", "broken"].includes(params.status ?? "")
+      ? params.status
+      : ""
+  ) as EquipmentStatus | "";
+  const category  = params.category ?? "";
+  const location  = params.location ?? "";
+  const page      = Math.max(1, Number(params.page ?? "1"));
+  const sortBy    = (
+    EQUIPMENT_SORT_FIELDS.includes(params.sortBy as EquipmentSortField)
+      ? params.sortBy
+      : "displayName"
+  ) as EquipmentSortField;
+  const sortDir   = (params.sortDir === "desc" ? "desc" : "asc") as SortDir;
   const highlight = params.highlight;
 
   const [locations, canCreate] = await Promise.all([
@@ -88,11 +98,22 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
             <Monitor className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Вычислительная техника</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Учёт и управление оборудованием</p>
+            <h1 className="text-xl font-semibold text-foreground">
+              Вычислительная техника
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Учёт и управление оборудованием
+            </p>
           </div>
         </div>
-        <EquipmentFormDrawer canCreate={canCreate} />
+
+        <div className="flex items-center gap-2">
+          {/* Export respects current URL filters — needs Suspense for useSearchParams */}
+          <Suspense fallback={<div className="h-9 w-24 rounded-lg bg-muted animate-pulse" />}>
+            <ExportEquipmentButton />
+          </Suspense>
+          <EquipmentFormDrawer canCreate={canCreate} />
+        </div>
       </div>
 
       {/* Stats */}
@@ -109,8 +130,13 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
         fallback={<TableSkeleton />}
       >
         <EquipmentTable
-          q={q} status={status} category={category} location={location}
-          page={page} sortBy={sortBy} sortDir={sortDir}
+          q={q}
+          status={status}
+          category={category}
+          location={location}
+          page={page}
+          sortBy={sortBy}
+          sortDir={sortDir}
           highlightId={highlight}
         />
       </Suspense>
