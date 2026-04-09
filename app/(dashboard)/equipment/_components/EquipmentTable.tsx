@@ -221,6 +221,14 @@ function EquipmentRow({
 }: {
   row: EquipmentRow; isHighlighted: boolean; canEdit: boolean; canDelete: boolean;
 }) {
+  // Compact specs line: RAM, storage, OS
+  const specsParts: string[] = [];
+  if (row.ramGb)    specsParts.push(`${row.ramGb} ГБ`);
+  if (row.storageGb) specsParts.push(`${row.storageType ?? "HDD"} ${row.storageGb} ГБ`);
+  if (row.os)       specsParts.push(row.os.replace("Windows ", "Win ").replace("Astra Linux", "Astra"));
+
+  const specsLine = specsParts.join(" · ");
+
   return (
     <tr
       id={`row-${row.id}`}
@@ -229,34 +237,58 @@ function EquipmentRow({
         isHighlighted && "bg-primary/5 ring-1 ring-inset ring-primary/20"
       )}
     >
-      {/* Checkbox — client-managed */}
+      {/* Checkbox */}
       <td className="pl-4 pr-2 py-3">
-        <EquipmentTableClient
-          id={row.id}
-          displayName={row.displayName}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          mode="checkbox"
-        />
+        <EquipmentTableClient id={row.id} displayName={row.displayName}
+          canEdit={canEdit} canDelete={canDelete} mode="checkbox" />
       </td>
 
-      {/* Name */}
-      <td className="px-2 py-3">
-        <Link href={`/equipment/${row.id}` as Route} className="block group/link focus:outline-none rounded-sm focus:ring-2 focus:ring-ring">
-          <p className="font-medium leading-tight text-foreground group-hover/link:text-primary transition-colors">
-            {row.displayName}
-          </p>
-          {row.serialNumber && (
-            <p className="text-xs text-muted-foreground mt-0.5 font-mono">{row.serialNumber}</p>
+      {/* Name + specs */}
+      <td className="px-2 py-2.5">
+        <Link href={`/equipment/${row.id}` as Route}
+          className="block group/link focus:outline-none rounded-sm focus:ring-2 focus:ring-ring">
+          <div className="flex items-center gap-2">
+            <p className="font-medium leading-tight text-foreground group-hover/link:text-primary transition-colors">
+              {row.displayName}
+            </p>
+            {row.status === "broken" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium border border-red-500/20">
+                НЕИСПРАВНО
+              </span>
+            )}
+            {row.status === "repair" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium border border-amber-500/20">
+                РЕМОНТ
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            {row.manufacturer && (
+              <span className="text-xs text-muted-foreground">{row.manufacturer}</span>
+            )}
+            {row.model && (
+              <span className="text-xs text-muted-foreground">{row.model}</span>
+            )}
+          </div>
+          {specsLine && (
+            <p className="text-xs text-muted-foreground/70 mt-0.5">{specsLine}</p>
           )}
         </Link>
       </td>
 
       {/* Inventory number */}
       <td className="px-2 py-3 hidden sm:table-cell">
-        <span className={cn("text-sm font-mono", row.inventoryNumber ? "text-foreground" : "text-muted-foreground")}>
-          {row.inventoryNumber ?? "—"}
-        </span>
+        <div>
+          <span className={cn("text-sm font-mono",
+            row.inventoryNumber ? "text-foreground" : "text-muted-foreground/50 text-xs")}>
+            {row.inventoryNumber ?? "нет"}
+          </span>
+          {row.serialNumber && (
+            <p className="text-xs text-muted-foreground/60 font-mono mt-0.5 truncate max-w-[110px]">
+              {row.serialNumber}
+            </p>
+          )}
+        </div>
       </td>
 
       {/* Category */}
@@ -273,13 +305,11 @@ function EquipmentRow({
       <td className="px-2 py-3 hidden lg:table-cell">
         {row.personnelName ? (
           <div>
-            <p className="text-sm text-foreground">{row.personnelName}</p>
-            {row.personnelRank && (
-              <p className="text-xs text-muted-foreground">{row.personnelRank}</p>
-            )}
+            <p className="text-sm text-foreground font-medium leading-tight">{row.personnelName}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{row.personnelRank}</p>
           </div>
         ) : (
-          <span className="text-muted-foreground text-sm">—</span>
+          <span className="text-xs text-muted-foreground/50 italic">не закреплено</span>
         )}
       </td>
 
@@ -290,13 +320,8 @@ function EquipmentRow({
 
       {/* Actions */}
       <td className="pl-2 pr-4 py-3">
-        <EquipmentTableClient
-          id={row.id}
-          displayName={row.displayName}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          mode="actions"
-        />
+        <EquipmentTableClient id={row.id} displayName={row.displayName}
+          canEdit={canEdit} canDelete={canDelete} mode="actions" />
       </td>
     </tr>
   );

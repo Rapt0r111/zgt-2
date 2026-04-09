@@ -15,6 +15,7 @@ import { createEquipment, updateEquipment } from "@/lib/actions/equipment";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import type { EquipmentRow } from "@/lib/equipment.server";
+import { PersonnelPicker } from "./PersonnelPicker";
 
 // ── Field wrapper ──────────────────────────────────────────────────────────
 
@@ -259,14 +260,17 @@ export function EquipmentForm({ mode, defaultData, onSuccess, onCancel }: Equipm
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 pt-2">
-        <Field label="Местоположение" error={errors.location?.message}>
-          <input {...register("location")} placeholder="Каб. 101" className={inputClass} />
-        </Field>
-        <Field label="Владелец (ID сотрудника)" error={errors.personnelId?.message}>
-          <input {...register("personnelId")} placeholder="UUID сотрудника" className={cn(inputClass, "font-mono text-xs")} />
-        </Field>
-      </div>
+      <Field label="Местоположение" error={errors.location?.message}>
+        <input {...register("location")} placeholder="Каб. 101, 3-й корпус" className={inputClass} />
+      </Field>
+
+      <Field label="Владелец / Ответственный" error={errors.personnelId?.message}>
+        <PersonnelPicker
+          value={watch("personnelId") || undefined}
+          onChange={(id) => setValue("personnelId", id ?? "", { shouldDirty: true })}
+        />
+        <p className="text-xs text-muted-foreground mt-1">Сотрудник, за которым закреплено устройство</p>
+      </Field>
 
       {/* ── Kit (for laptops) ─────────────────────────────────────────── */}
       {isLaptop && (
