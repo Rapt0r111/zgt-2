@@ -15,34 +15,31 @@ import { EquipmentTableClient } from "./EquipmentTableClient";
 
 /* ── Status badge ─────────────────────────────────────────────────────────── */
 
+const STATUS_STYLES: Record<string, { bg: string; color: string; dot: string }> = {
+  emerald: { bg: "rgba(16,185,129,0.12)",  color: "#34D399", dot: "0 0 6px #34D399" },
+  blue:    { bg: "rgba(59,130,246,0.12)",  color: "#60A5FA", dot: "" },
+  amber:   { bg: "rgba(245,158,11,0.12)",  color: "#FCD34D", dot: "0 0 6px #FCD34D" },
+  red:     { bg: "rgba(239,68,68,0.12)",   color: "#F87171", dot: "0 0 6px #F87171" },
+};
+
 function StatusBadge({ status }: { status: string }) {
   const s = EQUIPMENT_STATUS_MAP[status as keyof typeof EQUIPMENT_STATUS_MAP];
-  if (!s) return <span className="text-muted-foreground text-xs">—</span>;
+  if (!s) return <span style={{ color: "#4A5568", fontSize: "13px" }}>—</span>;
 
-  const styles: Record<string, React.CSSProperties> = {
-    emerald: {
-      background: "hsl(160 84% 55% / 0.12)",
-      color: "hsl(160 84% 60%)",
-    },
-    blue: {
-      background: "hsl(213 100% 68% / 0.12)",
-      color: "hsl(213 100% 68%)",
-    },
-    amber: {
-      background: "hsl(38 92% 68% / 0.12)",
-      color: "hsl(38 92% 72%)",
-    },
-    red: {
-      background: "hsl(0 72% 60% / 0.12)",
-      color: "hsl(0 72% 72%)",
-    },
-  };
+  const style = STATUS_STYLES[s.color] ?? { bg: "rgba(255,255,255,0.06)", color: "#94A3B8", dot: "" };
 
   return (
     <span
-      className="status-pill"
-      style={styles[s.color] ?? { background: "hsl(220 30% 13%)", color: "hsl(215 16% 60%)" }}
+      className="inline-flex items-center gap-[5px] px-[9px] py-[3px] rounded-full text-[11px] font-medium"
+      style={{ background: style.bg, color: style.color }}
     >
+      <span
+        className="w-[5px] h-[5px] rounded-full shrink-0"
+        style={{
+          background: style.color,
+          boxShadow: style.dot || undefined,
+        }}
+      />
       {s.label}
     </span>
   );
@@ -58,7 +55,7 @@ function CategoryBadge({ category }: { category: string }) {
     other:       "Прочее",
   };
   return (
-    <span className="text-xs text-muted-foreground">
+    <span className="text-xs" style={{ color: "#4A5568" }}>
       {labels[category] ?? category}
     </span>
   );
@@ -80,18 +77,21 @@ function SortableHeader({
   return (
     <Link
       href={`/equipment?${params.toString()}` as Route}
-      className={cn(
-        "inline-flex items-center gap-1.5 text-[10px] font-600 uppercase tracking-widest transition-colors",
-        isActive
-          ? "text-[hsl(213_100%_68%)]"
-          : "text-muted-foreground hover:text-[hsl(220_50%_80%)]"
-      )}
-      style={{ fontWeight: 600 }}
+      className="inline-flex items-center gap-1.5 transition-colors"
+      style={{
+        fontSize: "10.5px",
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.8px",
+        color: isActive ? "#60A5FA" : "#4A5568",
+      }}
     >
       {label}
       {isActive
-        ? (currentDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)
-        : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+        ? (currentDir === "asc"
+            ? <ArrowUp className="w-3 h-3" />
+            : <ArrowDown className="w-3 h-3" />)
+        : <ArrowUpDown className="w-3 h-3 opacity-40" />}
     </Link>
   );
 }
@@ -102,50 +102,49 @@ function Pagination({ page, pageCount, total, baseParams }: {
   page: number; pageCount: number; total: number; baseParams: Record<string, string>;
 }) {
   if (pageCount <= 1) return null;
-  const prev  = new URLSearchParams({ ...baseParams, page: String(page - 1) });
-  const next  = new URLSearchParams({ ...baseParams, page: String(page + 1) });
+  const prev = new URLSearchParams({ ...baseParams, page: String(page - 1) });
+  const next = new URLSearchParams({ ...baseParams, page: String(page + 1) });
   const start = (page - 1) * EQUIPMENT_PAGE_SIZE + 1;
   const end   = Math.min(page * EQUIPMENT_PAGE_SIZE, total);
 
-  const chipStyle: React.CSSProperties = {
-    background: "hsl(220 30% 11%)",
-    border: "1px solid hsl(220 30% 16%)",
-    color: "hsl(215 16% 55%)",
+  const chipBase: React.CSSProperties = {
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "#4A5568",
     borderRadius: "8px",
-  };
-  const chipActiveStyle: React.CSSProperties = {
-    ...chipStyle,
-    background: "hsl(217 91% 60% / 0.12)",
-    borderColor: "hsl(217 91% 60% / 0.3)",
-    color: "hsl(213 100% 68%)",
+    fontSize: "12px",
+    height: "32px",
+    padding: "0 12px",
+    display: "inline-flex",
+    alignItems: "center",
+    transition: "all 0.15s",
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3">
-      <p className="text-xs text-muted-foreground">
+    <div
+      className="flex items-center justify-between px-4 py-3"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+    >
+      <p className="text-xs tabular-nums" style={{ color: "#4A5568" }}>
         {start}–{end} из {total}
       </p>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <Link
           href={`/equipment?${prev.toString()}` as Route}
           aria-disabled={page <= 1}
-          className={cn("h-8 px-3 text-xs flex items-center transition-all",
-            page <= 1 && "pointer-events-none opacity-30"
-          )}
-          style={chipStyle}
+          className={cn(page <= 1 && "pointer-events-none opacity-30")}
+          style={chipBase}
         >
           ← Пред.
         </Link>
-        <span className="text-xs text-muted-foreground px-2 tabular-nums">
+        <span className="text-xs tabular-nums px-2" style={{ color: "#4A5568" }}>
           {page} / {pageCount}
         </span>
         <Link
           href={`/equipment?${next.toString()}` as Route}
           aria-disabled={page >= pageCount}
-          className={cn("h-8 px-3 text-xs flex items-center transition-all",
-            page >= pageCount && "pointer-events-none opacity-30"
-          )}
-          style={chipStyle}
+          className={cn(page >= pageCount && "pointer-events-none opacity-30")}
+          style={chipBase}
         >
           След. →
         </Link>
@@ -179,14 +178,21 @@ export async function EquipmentTable({
 
   if (result.items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center glass rounded-2xl">
-        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
-          style={{ background: "hsl(220 30% 11%)" }}
+      <div
+        className="flex flex-col items-center justify-center py-20 text-center rounded-2xl animate-fade-up delay-2"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
+          style={{ background: "rgba(255,255,255,0.06)" }}
         >
-          <MonitorX className="w-5 h-5 text-muted-foreground" />
+          <MonitorX className="w-5 h-5" style={{ color: "#4A5568" }} />
         </div>
-        <p className="text-sm font-medium">Нет записей</p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+        <p className="text-sm font-medium" style={{ color: "#94A3B8" }}>Нет записей</p>
+        <p className="text-xs mt-1 max-w-xs" style={{ color: "#4A5568" }}>
           {q || status || category || location
             ? "Попробуйте изменить условия фильтрации"
             : "Добавьте первое устройство, нажав «Добавить»"}
@@ -195,19 +201,19 @@ export async function EquipmentTable({
     );
   }
 
-  const theadStyle: React.CSSProperties = {
-    background: "hsl(220 38% 10%)",
-    borderBottom: "1px solid hsl(220 30% 14%)",
-  };
-
   return (
     <div
       className="rounded-2xl overflow-hidden animate-fade-up delay-2"
-      style={{ border: "1px solid hsl(220 30% 12%)" }}
+      style={{ border: "1px solid rgba(255,255,255,0.07)" }}
     >
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead style={theadStyle}>
+          <thead
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              borderBottom: "1px solid rgba(255,255,255,0.07)",
+            }}
+          >
             <tr>
               <th className="pl-4 pr-2 py-3 w-8">
                 <span className="sr-only">Выбор</span>
@@ -229,8 +235,14 @@ export async function EquipmentTable({
                   currentSort={sortBy!} currentDir={sortDir!} baseParams={baseParams} />
               </th>
               <th className="px-2 py-3 text-left hidden lg:table-cell">
-                <span className="text-[10px] font-600 uppercase tracking-widest text-muted-foreground"
-                  style={{ fontWeight: 600 }}
+                <span
+                  style={{
+                    fontSize: "10.5px",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.8px",
+                    color: "#4A5568",
+                  }}
                 >
                   Владелец
                 </span>
@@ -244,7 +256,8 @@ export async function EquipmentTable({
               </th>
             </tr>
           </thead>
-          <tbody style={{ borderColor: "hsl(220 30% 11%)" }}>
+
+          <tbody>
             {result.items.map((row, i) => (
               <EquipmentRow
                 key={row.id}
@@ -271,8 +284,6 @@ export async function EquipmentTable({
 
 /* ── Individual row ───────────────────────────────────────────────────────── */
 
-/* ── Individual row ───────────────────────────────────────────────────────── */
-
 function EquipmentRow({
   row, isHighlighted, canEdit, canDelete, animDelay,
 }: {
@@ -280,30 +291,26 @@ function EquipmentRow({
   canEdit: boolean; canDelete: boolean; animDelay: number;
 }) {
   const specsParts: string[] = [];
-  if (row.ramGb)    specsParts.push(`${row.ramGb} ГБ`);
+  if (row.ramGb)     specsParts.push(`${row.ramGb} ГБ`);
   if (row.storageGb) specsParts.push(`${row.storageType ?? "HDD"} ${row.storageGb} ГБ`);
-  if (row.os)       specsParts.push(row.os.replace("Windows ", "Win ").replace("Astra Linux", "Astra"));
+  if (row.os)        specsParts.push(row.os.replace("Windows ", "Win ").replace("Astra Linux", "Astra"));
   const specsLine = specsParts.join(" · ");
 
   const rowStyle: React.CSSProperties = {
-    borderBottom: "1px solid hsl(220 30% 10%)",
+    borderBottom: "1px solid rgba(255,255,255,0.03)",
     transition: "background 0.15s",
   };
+
   if (isHighlighted) {
-    rowStyle.background = "hsl(217 91% 60% / 0.06)";
-    rowStyle.boxShadow  = "inset 2px 0 0 hsl(217 91% 60%)";
+    rowStyle.background = "rgba(59,130,246,0.06)";
+    rowStyle.boxShadow  = "inset 2px 0 0 #3B82F6";
   }
 
   return (
     <tr
       id={`row-${row.id}`}
-      // Добавляем hover-эффект через Tailwind, если строка не выделена
-      className={cn(
-        "group",
-        !isHighlighted && "hover:bg-[hsl(220_40%_8%/0.8)]"
-      )}
+      className={cn("group", !isHighlighted && "hover:bg-[rgba(59,130,246,0.04)]")}
       style={rowStyle}
-      // УДАЛЯЕМ onMouseEnter и onMouseLeave
     >
       {/* Checkbox */}
       <td className="pl-4 pr-2 py-3">
@@ -323,29 +330,24 @@ function EquipmentRow({
           className="block focus:outline-none rounded-sm"
         >
           <div className="flex items-center gap-2">
-            <p className="font-500 leading-tight text-[hsl(220_50%_92%)] transition-colors group-hover:text-[hsl(213_100%_72%)]"
-              style={{ fontWeight: 500 }}
+            <p
+              className="font-medium leading-tight transition-colors"
+              style={{ color: "#F0F4FF" }}
             >
               {row.displayName}
             </p>
             {row.status === "broken" && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-500"
-                style={{
-                  background: "hsl(0 72% 60% / 0.12)",
-                  color: "hsl(0 72% 72%)",
-                  fontWeight: 500,
-                }}
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                style={{ background: "rgba(239,68,68,0.12)", color: "#F87171" }}
               >
                 НЕИСПРАВНО
               </span>
             )}
             {row.status === "repair" && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-500"
-                style={{
-                  background: "hsl(38 92% 68% / 0.12)",
-                  color: "hsl(38 92% 72%)",
-                  fontWeight: 500,
-                }}
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                style={{ background: "rgba(245,158,11,0.12)", color: "#FCD34D" }}
               >
                 РЕМОНТ
               </span>
@@ -353,14 +355,14 @@ function EquipmentRow({
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             {row.manufacturer && (
-              <span className="text-xs text-muted-foreground">{row.manufacturer}</span>
+              <span className="text-xs" style={{ color: "#4A5568" }}>{row.manufacturer}</span>
             )}
             {row.model && (
-              <span className="text-xs text-muted-foreground">{row.model}</span>
+              <span className="text-xs" style={{ color: "#4A5568" }}>{row.model}</span>
             )}
           </div>
           {specsLine && (
-            <p className="text-[11px] mt-0.5" style={{ color: "hsl(215 16% 35%)" }}>
+            <p className="text-[11px] mt-0.5" style={{ color: "#4A5568" }}>
               {specsLine}
             </p>
           )}
@@ -371,13 +373,16 @@ function EquipmentRow({
       <td className="px-2 py-3 hidden sm:table-cell">
         <div>
           <span
-            className="text-sm text-mono-id"
-            style={row.inventoryNumber ? { color: "hsl(220 50% 75%)" } : {}}
+            className="text-sm font-mono"
+            style={{ color: row.inventoryNumber ? "#94A3B8" : "#4A5568", fontSize: "12px", letterSpacing: "0.02em" }}
           >
             {row.inventoryNumber ?? "—"}
           </span>
           {row.serialNumber && (
-            <p className="text-mono-id mt-0.5 truncate max-w-[110px]">
+            <p
+              className="mt-0.5 truncate max-w-[110px] font-mono"
+              style={{ fontSize: "11px", color: "#4A5568", letterSpacing: "0.02em" }}
+            >
               {row.serialNumber}
             </p>
           )}
@@ -391,20 +396,20 @@ function EquipmentRow({
 
       {/* Location */}
       <td className="px-2 py-3 hidden lg:table-cell">
-        <span className="text-xs text-muted-foreground">{row.location ?? "—"}</span>
+        <span className="text-xs" style={{ color: "#4A5568" }}>{row.location ?? "—"}</span>
       </td>
 
       {/* Owner */}
       <td className="px-2 py-3 hidden lg:table-cell">
         {row.personnelName ? (
           <div>
-            <p className="text-[13px] font-500 leading-tight" style={{ fontWeight: 500, color: "hsl(220 50% 88%)" }}>
+            <p className="text-[13px] font-medium leading-tight" style={{ color: "#94A3B8" }}>
               {row.personnelName}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">{row.personnelRank}</p>
+            <p className="text-xs mt-0.5" style={{ color: "#4A5568" }}>{row.personnelRank}</p>
           </div>
         ) : (
-          <span className="text-xs italic" style={{ color: "hsl(215 16% 30%)" }}>
+          <span className="text-xs italic" style={{ color: "#4A5568" }}>
             не закреплено
           </span>
         )}

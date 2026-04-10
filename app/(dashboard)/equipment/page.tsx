@@ -18,6 +18,8 @@ import { EQUIPMENT_SORT_FIELDS } from "@/types/equipment";
 
 export const metadata: Metadata = { title: "Вычислительная техника — ЗГТ" };
 
+/* ── Skeleton helpers ──────────────────────────────────────────────────── */
+
 function StatsSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -30,13 +32,22 @@ function StatsSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid hsl(220 30% 12%)" }}>
-      <div className="h-11" style={{ background: "hsl(220 38% 10%)", borderBottom: "1px solid hsl(220 30% 14%)" }} />
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+    >
+      <div
+        className="h-11"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}
+      />
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
           className="flex items-center gap-4 px-4 py-3"
-          style={{ borderBottom: "1px solid hsl(220 30% 10%)" }}
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
         >
           <div className="w-4 h-4 rounded skeleton shrink-0" />
           <div className="flex-1 space-y-1.5">
@@ -52,6 +63,8 @@ function TableSkeleton() {
   );
 }
 
+/* ── Page props ────────────────────────────────────────────────────────── */
+
 interface EquipmentPageProps {
   searchParams: Promise<{
     q?:         string;
@@ -65,11 +78,13 @@ interface EquipmentPageProps {
   }>;
 }
 
+/* ── Page ──────────────────────────────────────────────────────────────── */
+
 export default async function EquipmentPage({ searchParams }: EquipmentPageProps) {
   const params = await searchParams;
 
-  const q        = params.q?.trim() ?? "";
-  const status   = (
+  const q       = params.q?.trim() ?? "";
+  const status  = (
     ["in_use", "storage", "repair", "broken"].includes(params.status ?? "")
       ? params.status : ""
   ) as EquipmentStatus | "";
@@ -89,24 +104,28 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
   ]);
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
-      {/* Header */}
+    <div className="container mx-auto max-w-7xl px-6 py-8 space-y-6">
+
+      {/* Page header */}
       <div className="flex items-start justify-between gap-4 animate-fade-up">
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
             style={{
-              background: "hsl(217 91% 60% / 0.12)",
-              border: "1px solid hsl(217 91% 60% / 0.2)",
+              background: "rgba(59,130,246,0.12)",
+              border: "1px solid rgba(59,130,246,0.2)",
             }}
           >
-            <Monitor className="w-5 h-5" style={{ color: "hsl(213 100% 68%)" }} />
+            <Monitor className="w-5 h-5" style={{ color: "#60A5FA" }} />
           </div>
           <div>
-            <h1 className="text-[18px] font-700" style={{ fontWeight: 700, letterSpacing: "-0.3px" }}>
+            <h1
+              className="text-[18px] font-bold"
+              style={{ color: "#F0F4FF", fontWeight: 700, letterSpacing: "-0.3px" }}
+            >
               Вычислительная техника
             </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs mt-0.5" style={{ color: "#4A5568" }}>
               Учёт и управление оборудованием
             </p>
           </div>
