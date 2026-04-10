@@ -24,8 +24,8 @@ import { z } from "zod";
 
 export interface PersonnelActionResult {
   success: boolean;
-  error?:  string;
-  id?:     string;
+  error?: string;
+  id?: string;
 }
 
 // ── Create ────────────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ export async function createPersonnel(
 
     const parsed = PersonnelFormSchema.safeParse(data);
     if (!parsed.success) {
-      const msg = parsed.error.errors[0]?.message ?? "Ошибка валидации";
+      const msg = parsed.error.issues[0]?.message ?? "Ошибка валидации";
       return { success: false, error: msg };
     }
 
@@ -48,17 +48,17 @@ export async function createPersonnel(
     const [created] = await db
       .insert(personnel)
       .values({
-        lastName:        v.lastName,
-        firstName:       v.firstName,
-        middleName:      v.middleName  || null,
+        lastName: v.lastName,
+        firstName: v.firstName,
+        middleName: v.middleName || null,
         personnelNumber: v.personnelNumber || null,
-        rank:            v.rank,
-        rankPriority:    v.rankPriority,
-        position:        v.position || null,
-        unit:            v.unit     || null,
-        status:          v.status,
-        notes:           v.notes    || null,
-        createdBy:       user?.id   ?? null,
+        rank: v.rank,
+        rankPriority: v.rankPriority,
+        position: v.position || null,
+        unit: v.unit || null,
+        status: v.status,
+        notes: v.notes || null,
+        createdBy: user?.id ?? null,
       })
       .returning({ id: personnel.id });
 
@@ -95,7 +95,7 @@ export async function updatePersonnel(
 
     const parsed = PersonnelFormSchema.safeParse(data);
     if (!parsed.success) {
-      const msg = parsed.error.errors[0]?.message ?? "Ошибка валидации";
+      const msg = parsed.error.issues[0]?.message ?? "Ошибка валидации";
       return { success: false, error: msg };
     }
 
@@ -104,17 +104,17 @@ export async function updatePersonnel(
     await db
       .update(personnel)
       .set({
-        lastName:        v.lastName,
-        firstName:       v.firstName,
-        middleName:      v.middleName  || null,
+        lastName: v.lastName,
+        firstName: v.firstName,
+        middleName: v.middleName || null,
         personnelNumber: v.personnelNumber || null,
-        rank:            v.rank,
-        rankPriority:    v.rankPriority,
-        position:        v.position || null,
-        unit:            v.unit     || null,
-        status:          v.status,
-        notes:           v.notes    || null,
-        updatedAt:       new Date(),
+        rank: v.rank,
+        rankPriority: v.rankPriority,
+        position: v.position || null,
+        unit: v.unit || null,
+        status: v.status,
+        notes: v.notes || null,
+        updatedAt: new Date(),
       })
       .where(eq(personnel.id, id));
 
