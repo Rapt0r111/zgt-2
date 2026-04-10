@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * EquipmentFormDrawer — Sheet with create/edit form.
- * Listens for "equipment:edit" and "equipment:create" custom events.
- */
-
 import { useState, useEffect, useCallback } from "react";
 import { MonitorPause } from "lucide-react";
 import {
@@ -21,33 +16,23 @@ export function EquipmentFormDrawer({ canCreate }: { canCreate: boolean }) {
   const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
-    // Edit existing device
     const editHandler = async (e: Event) => {
       const detail = (e as CustomEvent<{ id: string }>).detail;
       if (!detail?.id) return;
-
       setIsFetching(true);
       setMode("edit");
       setEditData(null);
       setIsOpen(true);
-
       try {
         const res = await fetch(`/api/equipment/${detail.id}`);
         if (res.ok) setEditData(await res.json());
       } catch {
-        // handled by empty form state
+        /* handled by empty form state */
       } finally {
         setIsFetching(false);
       }
     };
-
-    // Create new device — dispatched by CommandPalette
-    const createHandler = () => {
-      setMode("create");
-      setEditData(null);
-      setIsOpen(true);
-    };
-
+    const createHandler = () => { setMode("create"); setEditData(null); setIsOpen(true); };
     window.addEventListener("equipment:edit",   editHandler);
     window.addEventListener("equipment:create", createHandler);
     return () => {
@@ -65,11 +50,8 @@ export function EquipmentFormDrawer({ canCreate }: { canCreate: boolean }) {
       {canCreate && (
         <button
           onClick={openCreate}
-          className={cn(
-            "h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium",
-            "hover:bg-primary/90 transition-colors flex items-center gap-2",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          )}
+          className="h-9 px-4 rounded-xl text-sm font-600 flex items-center gap-2 btn-aurora focus:outline-none"
+          style={{ fontWeight: 600 }}
         >
           <MonitorPause className="w-4 h-4" />
           Добавить
@@ -93,7 +75,10 @@ export function EquipmentFormDrawer({ canCreate }: { canCreate: boolean }) {
           <SheetBody>
             {isFetching ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div
+                  className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
+                  style={{ borderColor: "hsl(217 91% 60%)", borderTopColor: "transparent" }}
+                />
               </div>
             ) : (
               <EquipmentForm

@@ -1,5 +1,5 @@
 /**
- * /equipment — Equipment Management Page
+ * /equipment — Aurora Equipment Management Page
  */
 
 import { Suspense } from "react";
@@ -20,9 +20,9 @@ export const metadata: Metadata = { title: "Вычислительная тех�
 
 function StatsSkeleton() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 animate-pulse">
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-16 rounded-lg bg-muted" />
+        <div key={i} className="h-20 rounded-xl skeleton" />
       ))}
     </div>
   );
@@ -30,21 +30,22 @@ function StatsSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className="rounded-xl border border-border overflow-hidden animate-pulse">
-      <div className="h-11 bg-muted/40 border-b border-border" />
+    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid hsl(220 30% 12%)" }}>
+      <div className="h-11" style={{ background: "hsl(220 38% 10%)", borderBottom: "1px solid hsl(220 30% 14%)" }} />
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0"
+          className="flex items-center gap-4 px-4 py-3"
+          style={{ borderBottom: "1px solid hsl(220 30% 10%)" }}
         >
-          <div className="w-4 h-4 rounded bg-muted shrink-0" />
+          <div className="w-4 h-4 rounded skeleton shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3.5 bg-muted rounded w-2/5" />
-            <div className="h-2.5 bg-muted rounded w-1/4" />
+            <div className="h-3.5 rounded skeleton w-2/5" />
+            <div className="h-2.5 rounded skeleton w-1/4" />
           </div>
-          <div className="h-3.5 bg-muted rounded w-20 hidden sm:block" />
-          <div className="h-3.5 bg-muted rounded w-16 hidden md:block" />
-          <div className="h-5 bg-muted rounded-full w-20" />
+          <div className="h-3.5 rounded skeleton w-24 hidden sm:block" />
+          <div className="h-3.5 rounded skeleton w-20 hidden md:block" />
+          <div className="h-5 rounded-full skeleton w-20" />
         </div>
       ))}
     </div>
@@ -70,16 +71,14 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
   const q        = params.q?.trim() ?? "";
   const status   = (
     ["in_use", "storage", "repair", "broken"].includes(params.status ?? "")
-      ? params.status
-      : ""
+      ? params.status : ""
   ) as EquipmentStatus | "";
   const category  = params.category ?? "";
   const location  = params.location ?? "";
   const page      = Math.max(1, Number(params.page ?? "1"));
   const sortBy    = (
     EQUIPMENT_SORT_FIELDS.includes(params.sortBy as EquipmentSortField)
-      ? params.sortBy
-      : "displayName"
+      ? params.sortBy : "displayName"
   ) as EquipmentSortField;
   const sortDir   = (params.sortDir === "desc" ? "desc" : "asc") as SortDir;
   const highlight = params.highlight;
@@ -92,24 +91,29 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 animate-fade-up">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Monitor className="w-5 h-5 text-primary" />
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{
+              background: "hsl(217 91% 60% / 0.12)",
+              border: "1px solid hsl(217 91% 60% / 0.2)",
+            }}
+          >
+            <Monitor className="w-5 h-5" style={{ color: "hsl(213 100% 68%)" }} />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">
+            <h1 className="text-[18px] font-700" style={{ fontWeight: 700, letterSpacing: "-0.3px" }}>
               Вычислительная техника
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Учёт и управление оборудованием
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Export respects current URL filters — needs Suspense for useSearchParams */}
-          <Suspense fallback={<div className="h-9 w-24 rounded-lg bg-muted animate-pulse" />}>
+          <Suspense fallback={<div className="h-9 w-20 rounded-xl skeleton" />}>
             <ExportEquipmentButton />
           </Suspense>
           <EquipmentFormDrawer canCreate={canCreate} />
@@ -141,7 +145,6 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
         />
       </Suspense>
 
-      {/* Batch toolbar — client only, appears when rows selected */}
       <EquipmentBatchToolbar />
     </div>
   );

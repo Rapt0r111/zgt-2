@@ -1,50 +1,71 @@
 @import "tailwindcss";
 
-/* ── Design tokens (CSS Variables) ───────────────────────────────────────── */
+/* ── Aurora Command — Design Tokens ──────────────────────────────────────── */
+@theme inline {
+  --font-sans: var(--font-outfit), "Outfit", system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", "Fira Code", monospace;
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    /* Aurora Dark palette — default is dark */
+    --background:         220 47% 4%;   /* #060C18 */
+    --foreground:         220 50% 95%;  /* #F0F4FF */
+    --card:               220 40% 8%;   /* #0B1426 */
+    --card-foreground:    220 50% 95%;
+    --popover:            220 38% 10%;  /* #111D35 */
+    --popover-foreground: 220 50% 95%;
+    --primary:            217 91% 60%;  /* #3B82F6 */
+    --primary-foreground: 0 0% 100%;
+    --secondary:          220 32% 15%;  /* muted bg */
+    --secondary-foreground: 220 30% 70%;
+    --muted:              220 32% 13%;
+    --muted-foreground:   215 16% 40%;  /* #4A5568 */
+    --accent:             217 91% 60%;
+    --accent-foreground:  0 0% 100%;
+    --destructive:        0 72% 60%;    /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --border:             220 30% 12%;  /* rgba(255,255,255,0.07) approx */
+    --input:              220 30% 14%;
+    --ring:               217 91% 60%;
+    --radius:             0.625rem;
+
+    /* Aurora-specific semantic tokens */
+    --aurora-blue:        217 91% 60%;
+    --aurora-blue-light:  213 100% 68%; /* #60A5FA */
+    --aurora-violet:      258 90% 66%;  /* #8B5CF6 */
+    --aurora-cyan:        186 100% 42%; /* #06B6D4 */
+    --aurora-emerald:     160 84% 39%;  /* #10B981 */
+    --aurora-amber:       38 92% 50%;   /* #F59E0B */
+    --aurora-red:         0 72% 60%;    /* #EF4444 */
+
+    /* Glass surface */
+    --glass-bg:           rgba(255, 255, 255, 0.03);
+    --glass-border:       rgba(255, 255, 255, 0.07);
+    --glass-hover:        rgba(59, 130, 246, 0.08);
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+  /* Light mode override — for when user switches */
+  .light {
+    --background:         0 0% 100%;
+    --foreground:         222 84% 5%;
+    --card:               0 0% 100%;
+    --card-foreground:    222 84% 5%;
+    --popover:            0 0% 100%;
+    --popover-foreground: 222 84% 5%;
+    --primary:            221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary:          210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted:              210 40% 96%;
+    --muted-foreground:   215 16% 47%;
+    --accent:             210 40% 96%;
+    --accent-foreground:  222 47% 11%;
+    --destructive:        0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border:             214 32% 91%;
+    --input:              214 32% 91%;
+    --ring:               221 83% 53%;
   }
 }
 
@@ -54,45 +75,294 @@
     border-color: hsl(var(--border));
   }
 
+  html {
+    /* Force dark by default — Aurora Command is dark-first */
+    color-scheme: dark;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* FTS highlight marks */
   mark {
-    background-color: oklch(0.905 0.182 98.111); /* yellow-200 */
+    background-color: hsl(38 92% 50% / 0.25);
     color: hsl(var(--foreground));
     border-radius: 0.125rem;
     padding-inline: 0.125rem;
   }
 
-  /* Focus visible — accessibility */
+  /* Focus visible */
   :focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
+    box-shadow:
+      0 0 0 2px hsl(var(--background)),
+      0 0 0 4px hsl(var(--ring));
   }
 }
 
-/* ── Scrollbar styling ────────────────────────────────────────────────────── */
+/* ── Aurora utility classes ───────────────────────────────────────────────── */
 @layer utilities {
-  .scrollbar-thin {
+  /* Glass card */
+  .glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .glass-hover {
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  }
+
+  .glass-hover:hover {
+    background: var(--glass-hover);
+    border-color: hsl(var(--primary) / 0.25);
+    transform: translateY(-1px);
+  }
+
+  /* Status pills with live dot */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+  }
+
+  .status-pill::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-active {
+    background: hsl(160 84% 39% / 0.12);
+    color: hsl(160 84% 55%);
+  }
+  .status-active::before {
+    background: hsl(160 84% 55%);
+    box-shadow: 0 0 6px hsl(160 84% 55%);
+    animation: status-pulse 2s ease-in-out infinite;
+  }
+
+  .status-storage {
+    background: hsl(213 100% 68% / 0.12);
+    color: hsl(213 100% 68%);
+  }
+  .status-storage::before {
+    background: hsl(213 100% 68%);
+  }
+
+  .status-repair {
+    background: hsl(38 92% 60% / 0.12);
+    color: hsl(38 92% 68%);
+  }
+  .status-repair::before {
+    background: hsl(38 92% 68%);
+    box-shadow: 0 0 5px hsl(38 92% 68%);
+  }
+
+  .status-broken {
+    background: hsl(0 72% 60% / 0.12);
+    color: hsl(0 72% 72%);
+  }
+  .status-broken::before {
+    background: hsl(0 72% 72%);
+    box-shadow: 0 0 5px hsl(0 72% 72%);
+  }
+
+  /* Gradient primary button */
+  .btn-aurora {
+    background: linear-gradient(135deg, hsl(var(--aurora-blue)), hsl(var(--aurora-violet)));
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 20px hsl(var(--aurora-blue) / 0.3);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.2s ease;
+  }
+
+  .btn-aurora:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px hsl(var(--aurora-blue) / 0.45);
+  }
+
+  .btn-aurora:active {
+    transform: translateY(0);
+  }
+
+  /* Nav item active state */
+  .nav-active {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--aurora-blue) / 0.15),
+      hsl(var(--aurora-blue) / 0.05)
+    );
+    color: hsl(var(--aurora-blue-light));
+    border-left: 2px solid hsl(var(--aurora-blue));
+    margin-left: -2px;
+  }
+
+  /* Sidebar live-dot animation */
+  .live-dot {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .live-dot::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: hsl(var(--aurora-emerald));
+    box-shadow: 0 0 8px hsl(var(--aurora-emerald));
+    animation: status-pulse 2s ease-in-out infinite;
+  }
+
+  /* Fade-up animation */
+  .animate-fade-up {
+    animation: fade-up 0.4s ease backwards;
+  }
+
+  .delay-1 { animation-delay: 0.05s; }
+  .delay-2 { animation-delay: 0.10s; }
+  .delay-3 { animation-delay: 0.15s; }
+  .delay-4 { animation-delay: 0.20s; }
+  .delay-5 { animation-delay: 0.25s; }
+  .delay-6 { animation-delay: 0.30s; }
+
+  /* Topbar backdrop */
+  .topbar-glass {
+    background: hsl(var(--background) / 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  /* Aurora background glow */
+  .aurora-glow-blue {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(
+      ellipse,
+      hsl(var(--aurora-blue) / 0.08) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  .aurora-glow-violet {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(
+      ellipse,
+      hsl(var(--aurora-violet) / 0.06) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  /* Scrollbar */
+  .scrollbar-aurora {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
   }
 
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  .scrollbar-aurora::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-track {
+  .scrollbar-aurora::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-thumb {
+  .scrollbar-aurora::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
-    border-radius: 3px;
+    border-radius: 2px;
+  }
+
+  /* Spring hover */
+  .spring-hover {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .spring-hover:hover {
+    transform: translateY(-2px) scale(1.01);
+  }
+
+  /* Mono text for IDs/serials */
+  .text-mono-id {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Alert banner variants */
+  .alert-warning {
+    background: hsl(38 92% 50% / 0.08);
+    border: 1px solid hsl(38 92% 50% / 0.2);
+    border-radius: var(--radius);
+    color: hsl(38 92% 68%);
+  }
+
+  .alert-error {
+    background: hsl(0 72% 60% / 0.08);
+    border: 1px solid hsl(0 72% 60% / 0.2);
+    border-radius: var(--radius);
+    color: hsl(0 72% 72%);
+  }
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes aurora-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Skeleton shimmer */
+@layer utilities {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.6) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: calc(var(--radius) / 2);
   }
 }

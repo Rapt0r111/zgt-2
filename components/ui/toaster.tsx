@@ -1,37 +1,26 @@
 "use client";
 
 /**
- * components/ui/toaster.tsx
- * Lightweight toast system using @radix-ui/react-toast
+ * components/ui/toaster.tsx — Aurora glass toasts
  */
 
 import * as RadixToast from "@radix-ui/react-toast";
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  type ReactNode,
-} from "react";
-import { X, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { X, CheckCircle2, AlertCircle, Info, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 type ToastVariant = "success" | "error" | "info";
 
 interface Toast {
-  id:       string;
-  title:    string;
+  id:          string;
+  title:       string;
   description?: string;
-  variant:  ToastVariant;
+  variant:     ToastVariant;
 }
 
 interface ToastContextValue {
   toast: (opts: Omit<Toast, "id">) => void;
 }
-
-// ── Context ───────────────────────────────────────────────────────────────────
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
@@ -41,27 +30,38 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-const ICONS: Record<ToastVariant, React.ComponentType<{ className?: string }>> = {
+const ICONS: Record<ToastVariant, LucideIcon> = {
   success: CheckCircle2,
   error:   AlertCircle,
   info:    Info,
 };
 
-const VARIANT_STYLES: Record<ToastVariant, string> = {
-  success: "border-emerald-500/40 bg-emerald-950/80 text-emerald-100",
-  error:   "border-red-500/40 bg-red-950/80 text-red-100",
-  info:    "border-blue-500/40 bg-blue-950/80 text-blue-100",
+const VARIANT_STYLES: Record<ToastVariant, React.CSSProperties> = {
+  success: {
+    background: "hsl(220 40% 10% / 0.95)",
+    border: "1px solid hsl(160 84% 55% / 0.3)",
+    backdropFilter: "blur(20px)",
+    color: "hsl(220 50% 92%)",
+  },
+  error: {
+    background: "hsl(220 40% 10% / 0.95)",
+    border: "1px solid hsl(0 72% 60% / 0.3)",
+    backdropFilter: "blur(20px)",
+    color: "hsl(220 50% 92%)",
+  },
+  info: {
+    background: "hsl(220 40% 10% / 0.95)",
+    border: "1px solid hsl(217 91% 60% / 0.3)",
+    backdropFilter: "blur(20px)",
+    color: "hsl(220 50% 92%)",
+  },
 };
 
-const ICON_STYLES: Record<ToastVariant, string> = {
-  success: "text-emerald-400",
-  error:   "text-red-400",
-  info:    "text-blue-400",
+const ICON_COLORS: Record<ToastVariant, string> = {
+  success: "hsl(160 84% 60%)",
+  error:   "hsl(0 72% 72%)",
+  info:    "hsl(213 100% 72%)",
 };
-
-// ── Provider ──────────────────────────────────────────────────────────────────
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -88,26 +88,35 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               open
               onOpenChange={(open) => !open && dismiss(t.id)}
               className={cn(
-                "flex items-start gap-3 w-80 p-4 rounded-xl border shadow-2xl backdrop-blur",
+                "flex items-start gap-3 w-80 p-4 rounded-2xl shadow-2xl",
                 "data-[state=open]:animate-in data-[state=closed]:animate-out",
                 "data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full",
-                "data-[state=open]:slide-in-from-right-full data-[state=open]:fade-in-0",
-                VARIANT_STYLES[t.variant]
+                "data-[state=open]:slide-in-from-right-full data-[state=open]:fade-in-0"
               )}
+              style={{
+                ...VARIANT_STYLES[t.variant],
+                boxShadow: "0 16px 40px hsl(220 47% 2% / 0.5)",
+              }}
             >
-              <Icon className={cn("w-5 h-5 mt-0.5 shrink-0", ICON_STYLES[t.variant])} />
+              <Icon
+                className="w-5 h-5 mt-0.5 shrink-0"
+                style={{ color: ICON_COLORS[t.variant] }}
+              />
               <div className="flex-1 min-w-0">
-                <RadixToast.Title className="text-sm font-semibold">
+                <RadixToast.Title className="text-sm font-600" style={{ fontWeight: 600 }}>
                   {t.title}
                 </RadixToast.Title>
                 {t.description && (
-                  <RadixToast.Description className="text-xs opacity-80 mt-0.5">
+                  <RadixToast.Description
+                    className="text-xs mt-0.5"
+                    style={{ color: "hsl(215 16% 55%)" }}
+                  >
                     {t.description}
                   </RadixToast.Description>
                 )}
               </div>
               <RadixToast.Close
-                className="shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity"
+                className="shrink-0 transition-opacity opacity-40 hover:opacity-80"
                 aria-label="Закрыть"
               >
                 <X className="w-4 h-4" />
@@ -116,7 +125,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           );
         })}
 
-        <RadixToast.Viewport className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 outline-none" />
+        <RadixToast.Viewport
+          className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 outline-none"
+        />
       </RadixToast.Provider>
     </ToastContext.Provider>
   );

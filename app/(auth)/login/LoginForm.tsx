@@ -10,19 +10,37 @@ interface LoginFormProps {
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-  forbidden: "Недостаточно прав доступа",
+  forbidden:   "Недостаточно прав доступа",
   credentials: "Неверный логин или пароль",
-  inactive: "Учётная запись деактивирована",
+  inactive:    "Учётная запись деактивирована",
 };
 
+const inputBase = cn(
+  "w-full px-4 py-2.5 rounded-xl text-sm",
+  "text-[hsl(220_50%_95%)] placeholder:text-[hsl(215_16%_35%)]",
+  "focus:outline-none transition-all duration-200",
+);
+
+const inputStyle = {
+  background: "hsl(220 40% 11%)",
+  border: "1px solid hsl(220 30% 16%)",
+};
+
+const inputFocusStyle = `
+  [data-focused=true] {
+    border-color: hsl(217 91% 60% / 0.5);
+    box-shadow: 0 0 0 3px hsl(217 91% 60% / 0.1);
+  }
+`;
+
 export function LoginForm({ callbackUrl, error }: LoginFormProps) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername]       = useState("");
+  const [password, setPassword]       = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState<string | null>(
+  const [formError, setFormError]     = useState<string | null>(
     error ? (ERROR_MESSAGES[error] ?? "Произошла ошибка") : null
   );
-  const [isPending, startTransition] = useTransition();
+  const [isPending, startTransition]  = useTransition();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,10 +48,7 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
 
     startTransition(async () => {
       try {
-        // Convert username → internal email format used by better-auth
-        // e.g. "admin" → "admin@zgt.local"
         const email = `${username.trim().toLowerCase()}@zgt.local`;
-
         const res = await fetch("/api/auth/sign-in/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -46,32 +61,21 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
           return;
         }
 
-        // Use a hard navigation (window.location) instead of router.push().
-        // router.push() sends an RSC fetch request — the session cookie set by
-        // better-auth in the sign-in response may not be attached to that
-        // internal fetch in time, causing the proxy auth check to fail and
-        // triggering the redirect loop.  A full browser navigation guarantees
-        // the cookie is included in the very first request.
         window.location.href = callbackUrl;
-
       } catch {
         setFormError("Ошибка соединения с сервером");
       }
     });
   };
 
-  const inputClass = cn(
-    "w-full px-4 py-2.5 rounded-lg text-sm",
-    "bg-slate-700/60 border border-slate-600",
-    "text-white placeholder:text-slate-400",
-    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-    "transition-shadow"
-  );
-
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      {/* Username */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">
+        <label
+          className="block text-sm font-medium mb-1.5"
+          style={{ color: "hsl(215 20% 65%)" }}
+        >
           Имя пользователя
         </label>
         <input
@@ -82,12 +86,25 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
           required
           autoComplete="username"
           autoFocus
-          className={inputClass}
+          className={inputBase}
+          style={inputStyle}
+          onFocus={(e) => {
+            e.target.style.borderColor = "hsl(217 91% 60% / 0.5)";
+            e.target.style.boxShadow   = "0 0 0 3px hsl(217 91% 60% / 0.1)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "hsl(220 30% 16%)";
+            e.target.style.boxShadow   = "none";
+          }}
         />
       </div>
 
+      {/* Password */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">
+        <label
+          className="block text-sm font-medium mb-1.5"
+          style={{ color: "hsl(215 20% 65%)" }}
+        >
           Пароль
         </label>
         <div className="relative">
@@ -98,41 +115,56 @@ export function LoginForm({ callbackUrl, error }: LoginFormProps) {
             placeholder="••••••••"
             required
             autoComplete="current-password"
-            className={cn(inputClass, "pr-10")}
+            className={cn(inputBase, "pr-10")}
+            style={inputStyle}
+            onFocus={(e) => {
+              e.target.style.borderColor = "hsl(217 91% 60% / 0.5)";
+              e.target.style.boxShadow   = "0 0 0 3px hsl(217 91% 60% / 0.1)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "hsl(220 30% 16%)";
+              e.target.style.boxShadow   = "none";
+            }}
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+            style={{ color: "hsl(215 16% 40%)" }}
             aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
           >
-            {showPassword ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
+      {/* Error */}
       {formError && (
-        <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div
+          className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-sm"
+          style={{
+            background: "hsl(0 72% 60% / 0.1)",
+            border: "1px solid hsl(0 72% 60% / 0.25)",
+            color: "hsl(0 72% 72%)",
+          }}
+        >
           <span className="mt-0.5 shrink-0">⚠</span>
           <span>{formError}</span>
         </div>
       )}
 
+      {/* Submit */}
       <button
         type="submit"
         disabled={isPending || !username || !password}
         className={cn(
           "w-full flex items-center justify-center gap-2",
-          "py-2.5 px-4 rounded-lg text-sm font-medium",
-          "bg-blue-600 hover:bg-blue-500 text-white",
-          "disabled:opacity-50 disabled:cursor-not-allowed",
-          "transition-colors shadow-lg shadow-blue-500/20",
-          "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
+          "py-2.5 px-4 rounded-xl text-sm font-600",
+          "text-white transition-all duration-200",
+          "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
+          "btn-aurora",
         )}
+        style={{ fontWeight: 600 }}
       >
         {isPending ? (
           <Loader2 className="w-4 h-4 animate-spin" />
